@@ -110,7 +110,7 @@ export function buildRepairPrompt(t: RepairTask, feedback: string[], baselineTsc
     ``,
     `## Your job`,
     `Implement the missing behaviour in this app so a user can do the same thing from the preview UI. Follow the existing structure, components and code style. Change only files under src/. Do not edit package.json, lockfiles, configs or tests, and do not add dependencies.`,
-    `Before you finish, run: \`npx tsc -b\`, \`npm run lint\` and \`npm run prettier:check\` (fix formatting with \`npm run prettier:format\`).`,
+    `Before you finish, run each check as its own command from this directory, exactly as written, with no cd, pipes or redirection: \`npx tsc -b\`, \`npm run lint\`, \`npm run prettier:check\` (fix formatting with \`npm run prettier:format\`). Other shell commands are not available; use the file tools to read and search.`,
     baselineTscErrors.length ? `These type errors already exist upstream and are not yours; leave them: ${baselineTscErrors.join(', ')}.` : '',
     ...(feedback.length ? [``, `## Previous attempts did not pass`, ...feedback.map((f) => `- ${f}`)] : []),
     ``,

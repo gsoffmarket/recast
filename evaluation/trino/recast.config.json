@@ -72,9 +72,13 @@
       "Glob",
       "Grep",
       "Bash(npx tsc -b)",
+      "Bash(npx tsc -b:*)",
       "Bash(npm run lint)",
+      "Bash(npm run lint:*)",
       "Bash(npm run prettier:check)",
-      "Bash(npm run prettier:format)"
+      "Bash(npm run prettier:check:*)",
+      "Bash(npm run prettier:format)",
+      "Bash(npm run prettier:format:*)"
     ],
     "protectedPaths": [
       "packages",
