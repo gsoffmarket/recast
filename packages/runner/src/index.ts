@@ -2,7 +2,7 @@ import { Queue, Worker, QueueEvents, type Job } from 'bullmq';
 import { nowIso, redact } from '@recast/shared';
 import { compileObjective, parseRequirement, requirementHash, verifyFrozen, type NavigationBinding, type Requirement } from '@recast/behaviour-spec';
 import { runKane, kaneBalance, locateEvidencePacks, inspectEvidencePack, type KaneEvent } from '@recast/kane-adapter';
-import { TrinoOracle, TrinoRunningQueryFixture, trinoFingerprint } from '@recast/observations';
+import { TrinoOracle, TrinoRunningQueryFixture, trinoFingerprint, kaneFinalStateObservations } from '@recast/observations';
 import { evaluateRun } from '@recast/parity';
 import * as db from '@recast/db';
 
@@ -131,9 +131,9 @@ export async function executeRun(sql: db.Sql, job: RunJob, signal?: AbortSignal)
 
     // Observe independently, then clean up the fixture.
     await db.updateRun(sql, runId, { state: 'observing' });
-    const obs = await oracle.observe(queryId, req.settle_ms);
+    const obs = [...await oracle.observe(queryId, req.settle_ms), ...kaneFinalStateObservations(kane.runEnd?.final_state as Record<string, unknown> | undefined)];
     await db.insertObservations(sql, runId, obs);
-    await ev('oracle.observed', { adapter: oracle.name, settleMs: req.settle_ms, values: Object.fromEntries(obs.map((o) => [o.path, o.value])) });
+    await ev('oracle.observed', { adapter: obs.some((o) => o.adapter === 'kane-final-state') ? `${oracle.name}+kane-final-state` : oracle.name, settleMs: req.settle_ms, values: Object.fromEntries(obs.map((o) => [o.path, o.value])) });
     const cleanup = await fixture.cleanup(queryId);
     if (cleanup !== null) await ev('fixture.cleanup', { queryId, restStatus: cleanup, note: 'still running after observation; cancelled via REST' });
 

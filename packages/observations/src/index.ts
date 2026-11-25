@@ -136,3 +136,15 @@ export async function trinoFingerprint(baseUrl: string): Promise<Record<string, 
   const d = (await res.json()) as Record<string, any>;
   return { product: 'trino', version: d.nodeVersion?.version, environment: d.environment, coordinator: d.coordinator, starting: d.starting };
 }
+
+/**
+ * Browser observations: values Kane read off the page and stored ("store it as X"), exposed as `ui.X`.
+ * These are UI readings, labelled with their adapter; ground truth for them comes from the fixture or
+ * the REST oracle in the requirement's assertions, never from Kane's own pass/fail.
+ */
+export function kaneFinalStateObservations(finalState: Record<string, unknown> | undefined, at = new Date().toISOString()): Observation[] {
+  if (!finalState) return [];
+  return Object.entries(finalState)
+    .filter(([k, v]) => k !== 'url' && /^[a-z][a-z0-9_]{0,40}$/.test(k) && (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean'))
+    .map(([k, v]) => ({ path: `ui.${k}`, value: typeof v === 'string' ? v.trim() : (v as number | boolean), adapter: 'kane-final-state', status: 'observed' as const, at }));
+}
