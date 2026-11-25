@@ -335,3 +335,26 @@ export async function inspectEvidencePack(path: string): Promise<EvidencePack> {
   if (bad) throw new Error(`unsafe path in evidence pack: ${bad}`);
   return { path, bytes: s.size, sha256: await hashFile(path), entries };
 }
+
+export interface EvidenceStep { dir: string; ordinal: number; kind: string; status: string; summary: string; url: string | null; hasScreenshot: boolean }
+
+/** The steps recorded in a pack (one folder per step), in order, with whether a screenshot exists. */
+export async function readEvidenceSteps(packPath: string): Promise<EvidenceStep[]> {
+  const files = await readEvidenceEntries(packPath, (n) => /\/steps\/[^/]+\/(step\.json|screenshot\.jpg)$/.test(n));
+  const steps = new Map<string, EvidenceStep>();
+  for (const [name, buf] of files) {
+    const dir = name.split('/steps/')[1]!.split('/')[0]!;
+    const s = steps.get(dir) ?? { dir, ordinal: 0, kind: '', status: '', summary: '', url: null, hasScreenshot: false };
+    if (name.endsWith('screenshot.jpg')) s.hasScreenshot = true;
+    else { try { const j = JSON.parse(buf.toString('utf8')); Object.assign(s, { ordinal: Number(j.ordinal ?? 0), kind: String(j.kind ?? ''), status: String(j.status ?? ''), summary: String(j.summary ?? ''), url: j.url ?? null }); } catch { /* keep defaults */ } }
+    steps.set(dir, s);
+  }
+  return [...steps.values()].filter((s) => s.ordinal > 0).sort((a, b) => a.ordinal - b.ordinal);
+}
+
+/** One step's screenshot bytes, or null. `dir` must be a plain step folder name. */
+export async function readEvidenceScreenshot(packPath: string, dir: string): Promise<Buffer | null> {
+  if (!/^[A-Za-z0-9-]{1,64}$/.test(dir)) return null;
+  const files = await readEvidenceEntries(packPath, (n) => n.endsWith(`/steps/${dir}/screenshot.jpg`));
+  return files.values().next().value ?? null;
+}
