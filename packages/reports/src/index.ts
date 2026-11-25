@@ -19,6 +19,8 @@ export interface Report {
   rows: ReportRow[];
   runs: { total: number; byKind: Record<string, number>; creditsByBalance: number | null };
   tasks: Array<{ id: string; requirement: string; state: string; attempts: number; candidateSha: string | null; branch: string | null }>;
+  checks: Array<{ label: string; requirement: string; ref: string; candidateSha: string; expected: string; status: string; verdicts: string[]; asExpected: boolean; regression: unknown }>;
+  discovery: { maps: number; screens: number; flows: number; findings: number; candidates: number; linked: Array<{ candidate: string; requirement: string }> };
   versions: Record<string, unknown>;
   hash: string;
 }
@@ -69,6 +71,9 @@ export async function buildReport(sql: Sql, projectId: string, projectName: stri
   const [credits] = await sql<{ spent: string | null }[]>`SELECT sum(credits_balance_before - credits_balance_after) AS spent FROM runs WHERE project_id = ${projectId} AND credits_balance_after IS NOT NULL`;
   const tasks = await sql<any[]>`SELECT t.id, t.requirement_id, t.state, count(a.id)::int AS attempts, max(a.candidate_sha) FILTER (WHERE a.state = 'verified') AS sha, max(a.branch) FILTER (WHERE a.state = 'verified') AS branch
                                  FROM migration_tasks t LEFT JOIN agent_attempts a ON a.task_id = t.id WHERE t.project_id = ${projectId} GROUP BY t.id ORDER BY t.created_at`;
+  const checkRows = await sql<any[]>`SELECT label, requirement_id, ref, candidate_sha, expected, decision->>'status' AS status, verdicts, as_expected, decision->'regression' AS regression FROM candidate_checks WHERE project_id = ${projectId} ORDER BY created_at`;
+  const di = await sql<any[]>`SELECT kind, title, status, linked_requirement FROM discovery_items WHERE project_id = ${projectId}`;
+  const [maps] = await sql<{ n: number }[]>`SELECT count(*)::int AS n FROM discoveries WHERE project_id = ${projectId}`;
   const [kv] = await sql<{ v: string | null }[]>`SELECT max(kane_version) AS v FROM runs WHERE project_id = ${projectId}`;
   const body = {
     project: projectName,
@@ -77,6 +82,8 @@ export async function buildReport(sql: Sql, projectId: string, projectName: stri
     rows,
     runs: { total: kinds.reduce((s, k) => s + k.n, 0), byKind: Object.fromEntries(kinds.map((k) => [k.kind, k.n])), creditsByBalance: credits?.spent ? Math.round(Number(credits.spent) * 100) / 100 : null },
     tasks: tasks.map((t) => ({ id: t.id.slice(0, 8), requirement: t.requirement_id, state: t.state, attempts: t.attempts, candidateSha: t.sha, branch: t.branch })),
+    checks: checkRows.map((c) => ({ label: c.label, requirement: c.requirement_id, ref: c.ref, candidateSha: c.candidate_sha.slice(0, 10), expected: c.expected, status: c.status, verdicts: c.verdicts, asExpected: c.as_expected, regression: c.regression })),
+    discovery: { maps: maps?.n ?? 0, screens: di.filter((x) => x.kind === 'screen').length, flows: di.filter((x) => x.kind === 'flow').length, findings: di.filter((x) => x.kind === 'finding').length, candidates: di.filter((x) => x.kind === 'candidate').length, linked: di.filter((x) => x.kind === 'candidate' && x.linked_requirement).map((x) => ({ candidate: x.title, requirement: x.linked_requirement })) },
     versions: { kaneCli: kv?.v ?? null, environments: Object.fromEntries(envs.map((e) => [e.name, e.fingerprint?.version ?? null])) },
   };
   return { ...body, hash: contentHash(body) };
@@ -110,6 +117,14 @@ export function toMarkdown(r: Report): string {
     ``,
     `## Repair tasks`,
     ...(r.tasks.length ? r.tasks.map((t) => `- ${t.id} ${t.requirement}: ${t.state}, ${t.attempts} attempt(s)${t.candidateSha ? `, verified candidate \`${t.candidateSha.slice(0, 10)}\` on \`${t.branch}\`` : ''}`) : ['- none']),
+    ``,
+    `## Discovery (Kane Exploration)`,
+    r.discovery.maps ? `${r.discovery.maps} imported map(s): ${r.discovery.screens} screens, ${r.discovery.flows} flows, ${r.discovery.findings} findings, ${r.discovery.candidates} candidate requirements. Discovery shows what exists, not what it does.` : 'No exploration imported.',
+    ...r.discovery.linked.map((l) => `- ${l.candidate} → ${l.requirement}`),
+    ``,
+    `## Candidate checks (not counted as parity)`,
+    `Operator-written harness patches and unpatched controls that prove the re-verify path. They never count toward the verified total.`,
+    ...(r.checks.length ? r.checks.map((c) => `- ${c.label} on ${c.requirement} (\`${c.ref}\` @ \`${c.candidateSha}\`): ${c.status}, runs ${c.verdicts.join(', ')}; expected ${c.expected} → ${c.asExpected ? 'as expected' : 'NOT as expected'}`) : ['- none']),
     ``,
     `## Versions`,
     `Kane CLI ${r.versions.kaneCli ?? 'unknown'}; environments: ${Object.entries(r.versions.environments as Record<string, unknown>).map(([k, v]) => `${k} ${v ?? '?'}`).join(', ')}.`,
