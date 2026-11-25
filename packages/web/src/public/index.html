@@ -386,6 +386,67 @@ h2.big { font-size: clamp(26px, 3.4vw, 40px); line-height: 1.1; letter-spacing: 
 @media (max-width: 1000px) { .guards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 900px) { .fix, .repro { grid-template-columns: 1fr; gap: 24px; } .fix-copy { position: static; } }
 @media (max-width: 520px) { .guards { grid-template-columns: 1fr; } .closer { padding: 44px 16px; } }
+
+/* ---- phones: hamburger menu, swipe rows, tighter landing ---- */
+.burger { display: none; width: 40px; height: 40px; margin-right: -8px; border: 0; background: transparent; border-radius: var(--r-sm); cursor: pointer; flex-direction: column; justify-content: center; align-items: center; gap: 5px; }
+.burger span { display: block; width: 18px; height: 1.5px; border-radius: 2px; background: var(--text-primary); transition: transform var(--base) var(--ease-out), opacity var(--fast) ease; }
+.burger[aria-expanded="true"] span:nth-child(1) { transform: translateY(6.5px) rotate(45deg); }
+.burger[aria-expanded="true"] span:nth-child(2) { opacity: 0; }
+.burger[aria-expanded="true"] span:nth-child(3) { transform: translateY(-6.5px) rotate(-45deg); }
+.burger:hover { background: var(--bg-hover); }
+.bar .mnav { position: absolute; left: 0; right: 0; top: 100%; display: grid; gap: 2px; padding: 8px 16px 16px; background: rgba(8,8,8,.97); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border-subtle); box-shadow: 0 24px 48px rgba(0,0,0,.6); animation: pop 180ms var(--ease-out) both; transform-origin: top; }
+.bar .mnav[hidden] { display: none; }
+.bar .mnav a { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 0 12px; border-radius: var(--r-sm); color: var(--text-primary); font: 500 16px/1 var(--font-sans); text-decoration: none; }
+.bar .mnav a:hover, .bar .mnav a:active { background: var(--bg-hover); }
+.bar .mnav a[aria-current="page"] { background: var(--bg-surface-3); }
+.bar .mnav-reports { display: grid; gap: 2px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border-subtle); }
+.bar .mnav-reports a { font-size: 14px; font-weight: 400; color: var(--text-secondary); min-height: 44px; }
+.bar .mnav-reports a svg { width: 14px; height: 14px; }
+.bar .mnav-reports[hidden] { display: none; }
+.bar .mnav-label { padding: 6px 12px 2px; font: 600 11px/1 var(--font-sans); letter-spacing: .48px; text-transform: uppercase; color: var(--text-tertiary); }
+.bar .mnav-snap { margin-top: 8px; padding: 10px 12px 0; border-top: 1px solid var(--border-subtle); font: 400 12px/1.4 var(--font-mono); color: var(--text-tertiary); }
+.bar { position: sticky; }
+.bar-inner { position: relative; }
+.swipe-hint { display: none; }
+@media (max-width: 720px) {
+  .bar-inner { grid-template-columns: 1fr auto; height: 56px; }
+  .bar-inner nav, .bar-right .snap, .bar-right .menu { display: none !important; }
+  .burger { display: inline-flex; }
+  .brand span.word { display: inline !important; }
+  body.menu-open main.page { opacity: .35; transition: opacity var(--base) ease; }
+
+  .hero { padding-top: 12px; gap: 0; }
+  .hero .seam { display: none; }
+  .hero h1 { font-size: clamp(40px, 12vw, 56px); }
+  .hero .lede { font-size: 17px; margin: 16px 0 24px; }
+  .hero .cta { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .hero .cta .btn-primary { grid-column: 1 / -1; justify-content: center; height: 50px; }
+  .hero .cta .btn-line, .hero .cta .btn-ghost { justify-content: center; }
+  .cred { font-size: 11.5px; }
+
+  .proof, .results, .guards { display: grid; grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 86%; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; overscroll-behavior-x: contain; margin: 0 -16px; padding: 2px 16px 8px; scroll-padding: 0 16px; scrollbar-width: none; }
+  .proof::-webkit-scrollbar, .results::-webkit-scrollbar, .guards::-webkit-scrollbar { display: none; }
+  .proof > *, .results > *, .guards > * { scroll-snap-align: start; }
+  .proof-frame img { aspect-ratio: 4 / 3; }
+  .swipe-hint { display: block; font-size: 12px; color: var(--text-tertiary); margin-top: -6px; }
+  .result .n { font-size: 26px; }
+
+  .steps5 { gap: 0; }
+  .steps5 div { padding: 12px 0; display: grid; grid-template-columns: 92px 1fr; gap: 10px; align-items: baseline; }
+  .steps5 b { margin: 0; }
+
+  h2.big { font-size: 28px; }
+  .fix { padding: 0; }
+  .fix-diff > div:last-child { max-height: 320px; }
+  .repro { padding: 0; }
+  .term pre { font-size: 11.5px; line-height: 20px; padding: 14px; }
+  .closer { padding: 40px 16px; }
+  .closer .cta { display: grid; width: 100%; }
+  .closer .cta a { justify-content: center; }
+  .foot { gap: 14px; }
+
+  section[aria-label="Patch"] .diffs { max-height: 460px; overflow: auto; border-radius: var(--r-md); }
+}
 </style>
 </head>
 <body>
@@ -404,8 +465,15 @@ h2.big { font-size: clamp(26px, 3.4vw, 40px); line-height: 1.1; letter-spacing: 
     <div class="bar-right">
       <span class="snap" id="snap"></span>
       <span id="report-slot"></span>
+      <button class="burger" type="button" aria-expanded="false" aria-controls="mnav" aria-label="Open menu"><span></span><span></span><span></span></button>
     </div>
    </div>
+   <nav class="mnav" id="mnav" aria-label="Menu" hidden>
+    <a href="#/parity" data-view="parity">Requirements</a>
+    <a href="#/discovery" data-view="discovery">Discovery</a>
+    <div class="mnav-reports" id="mnav-reports"></div>
+    <div class="mnav-snap" id="mnav-snap"></div>
+   </nav>
   </header>
   <main class="page" id="page" aria-live="polite"></main>
 </div>
@@ -482,6 +550,8 @@ async function shell(view) {
   snapEl.textContent = SNAP ? `Snapshot of real runs · ${new Date(SNAP.generatedAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}` : (o.lastKnownBalance != null ? `Local · Kane credits ${credits(o.lastKnownBalance)}` : 'Local');
   snapEl.title = SNAP ? `Recorded from live Kane CLI runs on ${time(SNAP.generatedAt)}. This page is a read-only snapshot; reproduce it with the commands in the README.` : 'Live view of your local Recast database';
   const menu = document.querySelector('.menu'); if (menu) menu.hidden = view === 'landing';
+  $('#mnav-snap').textContent = snapEl.textContent;
+  $('#mnav-reports').hidden = view === 'landing';
   return o;
 }
 function loading() {
@@ -564,6 +634,7 @@ async function landing() {
         h('p', { class: 'cred' }, `Built with Kane CLI by TestMu AI · Trino 481 · ${r.runs.total} real Kane runs · open source`)),
       seamArt()),
     c ? h('section', { style: 'display:grid;gap:14px' }, h('div', { class: 'eyebrow' }, 'Same task, three versions of the UI'),
+      h('p', { class: 'swipe-hint' }, 'Swipe to see all three versions →'),
       h('div', { class: 'proof', 'aria-label': 'The same task on three versions of the UI' },
         proofFrame(c.source, 'Legacy UI: has Kill', 'ok', 0),
         proofFrame(c.target, 'New UI: Kill is missing', 'fail', 1),
@@ -574,6 +645,7 @@ async function landing() {
       h('div', {}, h('b', {}, String(s.fixesVerified || 0)), h('span', {}, 'fixed by an agent, verified by Kane')),
       h('div', {}, h('b', {}, String(s.verified - s.intentional)), h('span', {}, 'equivalent behaviour, no false alarm'))),
     h('section', { style: 'display:grid;gap:14px' }, h('div', { class: 'eyebrow' }, 'Real case: Trino 481, classic UI → new preview UI'),
+      h('p', { class: 'swipe-hint' }, 'Swipe for more →'),
       h('div', { class: 'results' },
         card('REQ-QRY-CANCEL', fixed ? 'Lost, then fixed' : 'Cancel was lost', fixed ? 'Kill a running query was missing in the new UI. Claude Code wrote a fix from evidence alone; Kane proved it 2 of 2 with no regressions.' : 'Kill a running query works in the classic UI and is missing in the new one: 2 of 2 runs, confirmed by Trino\'s API.', fixed ? h('span', { class: 'badge b-verified' }, svg(GLYPH.code), 'Fix verified') : null),
         card('REQ-QRY-PREEMPT', 'Kane found another gap', 'Kane Exploration discovered the Preempt control on its own. The new UI lacks it too: 2 of 2 runs.'),
@@ -588,6 +660,7 @@ async function landing() {
     fixSection,
     h('section', { style: 'display:grid;gap:18px' }, h('div', { class: 'eyebrow' }, 'Built so the verdict cannot be gamed'),
       h('h2', { class: 'big', style: 'max-width:22ch' }, 'The test agent and the coding agent both report. Neither decides.'),
+      h('p', { class: 'swipe-hint' }, 'Swipe for all four →'),
       h('div', { class: 'guards' },
         guard('search', 'The app is the judge', 'Every verdict comes from Trino\'s own API: the query is either killed or still running. Kane\'s pass or fail is recorded but never used, and in several runs it was wrong.'),
         guard('flag', 'Two runs or it does not count', 'A requirement is established only after two matching runs on the legacy UI, and a gap only after two consistent runs on the new one.'),
@@ -757,7 +830,7 @@ async function requirement(id) {
 
 function renderDiff(patch) {
   const files = patch.split(/^diff --git /m).filter(Boolean);
-  return h('div', { style: 'display:grid;gap:12px' }, files.map((f) => {
+  return h('div', { class: 'diffs', style: 'display:grid;gap:12px' }, files.map((f) => {
     const name = (f.match(/ b\/(\S+)/) || [])[1] || 'file';
     const body = f.split('\n').filter((l) => !/^(index |--- |\+\+\+ |new file|deleted file|similarity|rename )/.test(l)).slice(1);
     return h('div', { class: 'diff' }, h('div', { class: 'file' }, name.split('/').slice(-3).join('/')), h('pre', {}, body.map((l) => h('span', { class: `l ${l.startsWith('+') ? 'add' : l.startsWith('-') ? 'del' : l.startsWith('@@') ? 'hunk' : ''}` }, l || ' '))));
@@ -820,6 +893,18 @@ async function route() {
   } catch (e) { errorView(e); }
 }
 $('#report-slot').replaceWith(reportMenu());
+(function mobileNav() {
+  const btn = $('.burger'), panel = $('#mnav');
+  $('#mnav-reports').append(h('div', { class: 'mnav-label' }, 'Download report'),
+    ...['md', 'csv', 'json'].map((f) => h('a', { href: dataPath(`/api/report.${f}`), target: '_blank', rel: 'noopener' }, svg(GLYPH.dl), { md: 'Acceptance report (Markdown)', csv: 'Report rows (CSV)', json: 'Full report (JSON)' }[f])));
+  const set = (open) => { panel.hidden = !open; btn.setAttribute('aria-expanded', String(open)); btn.setAttribute('aria-label', open ? 'Close menu' : 'Open menu'); document.body.classList.toggle('menu-open', open); };
+  btn.addEventListener('click', (e) => { e.stopPropagation(); set(panel.hidden); });
+  panel.addEventListener('click', (e) => { if (e.target.closest('a')) set(false); });
+  addEventListener('click', (e) => { if (!panel.hidden && !e.target.closest('.bar')) set(false); });
+  addEventListener('keydown', (e) => { if (e.key === 'Escape' && !panel.hidden) { set(false); btn.focus(); } });
+  addEventListener('hashchange', () => set(false));
+  matchMedia('(min-width: 721px)').addEventListener('change', (m) => { if (m.matches) set(false); });
+})();
 
 const REDUCED = matchMedia('(prefers-reduced-motion: reduce)');
 let revealer = null;
