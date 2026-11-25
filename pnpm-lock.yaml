@@ -151,6 +151,9 @@ importers:
       bullmq:
         specifier: ^5.56.0
         version: 5.81.6
+      zod:
+        specifier: ^3.25.76
+        version: 3.25.76
 
   packages/shared: {}
 
