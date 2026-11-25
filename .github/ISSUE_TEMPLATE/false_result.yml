@@ -1,0 +1,22 @@
+name: Wrong parity result
+description: Recast called a requirement Missing, Preserved or Uncertain and the evidence says otherwise
+labels: [parity, bug]
+body:
+  - type: input
+    id: requirement
+    attributes:
+      label: Requirement ID and revision
+      placeholder: REQ-QRY-CANCEL r1
+    validations: { required: true }
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What kind of error
+      options: [False Missing (gap that is not real), False Preserved (real gap missed), Should have been Uncertain, Other]
+    validations: { required: true }
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: Run IDs, oracle values and the step that shows the mismatch.
+    validations: { required: true }
