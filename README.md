@@ -100,7 +100,14 @@ After all three, REQ-QRY-CANCEL r1 still has its original hash and expected valu
 
 ### Equivalent-UI control
 
-REQ-QRY-OWNER ("see who submitted a running query on its page") is supported by both UIs with different layouts, so Recast must call it Preserved on the preview UI. The control is running now; this section will report its measured result.
+REQ-QRY-OWNER ("see who submitted a running query on its page") is supported by both UIs with different layouts, so Recast must call it Preserved on the preview UI; a Missing would be a false positive.
+
+| Step | Runs | Outcome | Credits |
+|---|---|---|---|
+| Baseline on classic UI | 2 | 2 of 2 satisfied: Kane read `recast-m0` from the page, query still `RUNNING` | 37.12 + 33.77 |
+| Compare on preview UI | 1 | satisfied → **PRESERVED** (`ALL_ASSERTIONS_PASS`) | 22.54 |
+
+So across the two requirements Recast found the real gap (cancel) and did not invent one where the new UI is equivalent (owner).
 
 What we learned, and why Recast is built this way:
 
