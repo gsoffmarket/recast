@@ -163,6 +163,7 @@ export function startWebServer(sql: db.Sql, projectName: string, port = 4173) {
         res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'content-security-policy': "default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'; img-src 'self' data:" });
         return res.end(await readFile(join(PUBLIC, 'index.html')));
       }
+      if (p === '/og.png') { res.writeHead(200, { 'content-type': 'image/png', 'cache-control': 'public, max-age=86400' }); return res.end(await readFile(join(PUBLIC, 'og.png'))); }
       if (p === '/api/overview') { const o = await overview(sql, projectName); return o ? json(res, 200, o) : json(res, 404, { error: 'no project' }); }
       if (p === '/api/report.md') { const pr = await db.getProject(sql, projectName); res.writeHead(200, { 'content-type': 'text/markdown; charset=utf-8' }); return res.end(pr ? toMarkdown(await buildReport(sql, pr.id, pr.name)) : ''); }
       let m = p.match(/^\/api\/requirements\/(REQ-[A-Z0-9-]+)$/);
@@ -248,6 +249,7 @@ export async function exportStaticSite(sql: db.Sql, projectName: string, outDir:
   const page = (await readFile(join(PUBLIC, 'index.html'), 'utf8')).replace('<script>\n\'use strict\';', `<script>window.RECAST_SNAPSHOT = ${JSON.stringify({ generatedAt, project: projectName })};</script>\n<script>\n'use strict';`);
   if (!page.includes('RECAST_SNAPSHOT')) throw new Error('could not inject snapshot marker into index.html');
   await put('index.html', page);
+  await writeFile(join(outDir, 'og.png'), await readFile(join(PUBLIC, 'og.png'))); files++;
   await put('vercel.json', { cleanUrls: true, headers: [{ source: '/(.*)', headers: [
     { key: 'Content-Security-Policy', value: "default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'; img-src 'self' data:" },
     { key: 'X-Content-Type-Options', value: 'nosniff' }, { key: 'Referrer-Policy', value: 'no-referrer' }] }] });
