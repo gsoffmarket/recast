@@ -316,6 +316,7 @@ details.setup > summary { color: var(--text-tertiary); font-size: 12.5px; paddin
 .bar-inner nav { justify-self: center; }
 .bar-right { justify-self: end; display: flex; align-items: center; gap: 16px; min-width: 0; }
 @media (max-width: 520px) { .bar-inner { grid-template-columns: auto 1fr auto; } .bar-inner nav { justify-self: start; } }
+h1[tabindex="-1"]:focus, h1[tabindex="-1"]:focus-visible { outline: none; }
 </style>
 </head>
 <body>
@@ -700,11 +701,13 @@ async function route() {
     else if (view === 'requirements' && rest[0]) await requirement(decodeURIComponent(rest[0]));
     else if (view === 'discovery') await discovery();
     else notFound();
-    const h1 = $('#page h1'); if (h1) { h1.setAttribute('tabindex', '-1'); h1.focus({ preventScroll: true }); }
+    const h1 = $('#page h1'); if (h1 && !firstRoute) { h1.setAttribute('tabindex', '-1'); h1.focus({ preventScroll: true }); }
+    firstRoute = false;
     scrollTo(0, 0);
   } catch (e) { errorView(e); }
 }
 $('#report-slot').replaceWith(reportMenu());
+let firstRoute = true;
 addEventListener('hashchange', route);
 route();
 
