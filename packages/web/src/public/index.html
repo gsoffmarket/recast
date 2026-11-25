@@ -448,6 +448,35 @@ h2.big { font-size: clamp(26px, 3.4vw, 40px); line-height: 1.1; letter-spacing: 
 
   section[aria-label="Patch"] .diffs { max-height: 460px; overflow: auto; border-radius: var(--r-md); }
 }
+
+/* ---- premium buttons: depth, light and a little motion ---- */
+.btn-primary { position: relative; overflow: hidden; isolation: isolate; gap: 10px; font-weight: 600; letter-spacing: .08em;
+  background: linear-gradient(180deg, #9a78ff 0%, #8052ff 52%, #6c3df2 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.32), inset 0 -1px 0 rgba(0,0,0,.22), 0 0 0 1px rgba(128,82,255,.6), 0 10px 28px -8px rgba(128,82,255,.7), 0 2px 6px rgba(0,0,0,.45);
+  transition: transform var(--base) var(--ease-out), box-shadow var(--base) ease, filter var(--base) ease; }
+.btn-primary::before { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,.32) 50%, transparent 70%); transform: translateX(-130%); transition: transform 750ms var(--ease-out); }
+.btn-primary::after { content: "→"; font-weight: 400; letter-spacing: 0; transition: transform var(--base) var(--ease-out); }
+.btn-primary:hover { background: linear-gradient(180deg, #a585ff 0%, #8a5fff 52%, #7445f7 100%); transform: translateY(-1px); text-decoration: none;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.36), inset 0 -1px 0 rgba(0,0,0,.22), 0 0 0 1px rgba(150,112,255,.8), 0 16px 36px -10px rgba(128,82,255,.85), 0 2px 6px rgba(0,0,0,.45); }
+.btn-primary:hover::before { transform: translateX(130%); }
+.btn-primary:hover::after { transform: translateX(3px); }
+.btn-primary:active { transform: translateY(0) scale(.985); filter: brightness(.96); }
+
+.btn-line, .btn { background: linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.02)); border: 1px solid rgba(255,255,255,.14);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.09), 0 1px 2px rgba(0,0,0,.5); backdrop-filter: blur(8px);
+  transition: transform var(--base) var(--ease-out), border-color var(--base) ease, background var(--base) ease, box-shadow var(--base) ease; }
+.btn-line { font-weight: 500; }
+.btn-line:hover, .btn:hover { background: linear-gradient(180deg, rgba(255,255,255,.11), rgba(255,255,255,.04)); border-color: rgba(255,255,255,.3); transform: translateY(-1px); text-decoration: none;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 8px 20px -8px rgba(0,0,0,.8); }
+.btn-line:active, .btn:active { transform: translateY(0) scale(.985); }
+.btn-ghost { transition: color var(--fast) ease; }
+.btn-primary:focus-visible, .btn-line:focus-visible, .btn:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 3px; }
+@media (max-width: 720px) {
+  .closer .cta { justify-content: stretch !important; max-width: 420px; }
+  .closer .cta a { height: 50px; }
+  .hero .cta .btn-ghost { background: linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.02)); border-color: rgba(255,255,255,.14); box-shadow: inset 0 1px 0 rgba(255,255,255,.09), 0 1px 2px rgba(0,0,0,.5); font-weight: 500; }
+}
+@media (prefers-reduced-motion: reduce) { .btn-primary::before { display: none; } .btn-primary:hover, .btn-line:hover, .btn:hover { transform: none; } }
 </style>
 </head>
 <body>
