@@ -156,7 +156,7 @@ export async function insertParity(sql: Sql, p: { project_id: string; requiremen
 export async function latestParity(sql: Sql, projectId: string) {
   return sql<{ requirement_id: string; revision: number; status: string; reason_code: string; explanation: string; created_at: Date; spec_hash: string }[]>`
     SELECT DISTINCT ON (requirement_id) requirement_id, revision, status, reason_code, explanation, created_at, spec_hash
-    FROM parity_results WHERE project_id = ${projectId} ORDER BY requirement_id, created_at DESC`;
+    FROM parity_results WHERE project_id = ${projectId} AND decision->>'candidateSha' IS NULL ORDER BY requirement_id, created_at DESC`;
 }
 
 // ---------- repair (M3) ----------

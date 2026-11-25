@@ -8,14 +8,14 @@ import { contentHash } from '@recast/shared';
 
 export const REPORT_COLUMNS = [
   'requirement_id', 'revision', 'objective', 'role', 'fixture_version', 'source_build', 'target', 'target_commit',
-  'expected', 'actual', 'result', 'confidence_basis', 'source_run_ids', 'target_run_ids', 'patch_sha', 'evidence_refs', 'timestamp',
+  'expected', 'actual', 'result', 'confidence_basis', 'source_run_ids', 'target_run_ids', 'patch_sha', 'fix_status', 'evidence_refs', 'timestamp',
 ] as const;
 export type ReportRow = Record<(typeof REPORT_COLUMNS)[number], string>;
 
 export interface Report {
   project: string;
   generatedAt: string;
-  scope: { frozen: number; notFrozen: number; verified: number; missing: number; uncertain: number; untested: number; intentional: number };
+  scope: { frozen: number; notFrozen: number; verified: number; missing: number; uncertain: number; untested: number; intentional: number; fixesVerified: number };
   rows: ReportRow[];
   runs: { total: number; byKind: Record<string, number>; creditsByBalance: number | null };
   tasks: Array<{ id: string; requirement: string; state: string; attempts: number; candidateSha: string | null; branch: string | null }>;
@@ -30,12 +30,15 @@ export async function buildReport(sql: Sql, projectId: string, projectName: stri
   const envs = await sql<any[]>`SELECT * FROM environments WHERE project_id = ${projectId}`;
   const envById = new Map(envs.map((e) => [e.id, e]));
   const rows: ReportRow[] = [];
-  const scope = { frozen: 0, notFrozen: 0, verified: 0, missing: 0, uncertain: 0, untested: 0, intentional: 0 };
+  const scope = { frozen: 0, notFrozen: 0, verified: 0, missing: 0, uncertain: 0, untested: 0, intentional: 0, fixesVerified: 0 };
 
   for (const r of revs) {
     if (!r.frozen_at) { scope.notFrozen++; continue; }
     scope.frozen++;
-    const [p] = await sql<any[]>`SELECT * FROM parity_results WHERE project_id = ${projectId} AND requirement_id = ${r.requirement_id} AND revision = ${r.revision} AND spec_hash = ${r.hash} ORDER BY created_at DESC LIMIT 1`;
+    // Status on the real target comes only from target runs; a verified candidate fix is reported separately.
+    const [p] = await sql<any[]>`SELECT * FROM parity_results WHERE project_id = ${projectId} AND requirement_id = ${r.requirement_id} AND revision = ${r.revision} AND spec_hash = ${r.hash} AND decision->>'candidateSha' IS NULL ORDER BY created_at DESC LIMIT 1`;
+    const [fix] = await sql<any[]>`SELECT decision->>'candidateSha' AS sha, status, created_at FROM parity_results WHERE project_id = ${projectId} AND requirement_id = ${r.requirement_id} AND revision = ${r.revision} AND spec_hash = ${r.hash} AND decision->>'candidateSha' IS NOT NULL ORDER BY created_at DESC LIMIT 1`;
+    if (fix?.status === 'preserved' && p?.status !== 'preserved') scope.fixesVerified++;
     const status: string = p?.status ?? 'untested';
     if (status === 'preserved') scope.verified++; else if (status === 'intentional_change') { scope.intentional++; scope.verified++; } else if (status === 'missing') scope.missing++; else if (status === 'uncertain') scope.uncertain++; else scope.untested++;
     const d = p?.decision ?? {};
@@ -61,7 +64,8 @@ export async function buildReport(sql: Sql, projectId: string, projectName: stri
       confidence_basis: p ? `${p.reason_code}; ${srcIds.length} source / ${tgtIds.length} target runs; comparator ${p.comparator_version}; oracle ${r.body.oracle}` : 'no qualifying run for the current revision',
       source_run_ids: srcIds.map((x) => x.slice(0, 8)).join(' '),
       target_run_ids: tgtIds.map((x) => x.slice(0, 8)).join(' '),
-      patch_sha: d.candidateSha ?? '',
+      patch_sha: fix?.status === 'preserved' ? fix.sha : '',
+      fix_status: fix ? `${fix.status} on candidate` : '',
       evidence_refs: evidence.join(' '),
       timestamp: p ? new Date(p.created_at).toISOString() : '',
     });
@@ -104,11 +108,11 @@ export function toMarkdown(r: Report): string {
     ``,
     `Generated ${r.generatedAt} · report hash \`${r.hash}\``,
     ``,
-    `**${s.verified} of ${s.frozen} frozen in-scope requirements verified.** Missing ${s.missing} · Uncertain ${s.uncertain} · Untested ${s.untested} · Intentional change ${s.intentional}. Not yet frozen (excluded): ${s.notFrozen}.`,
+    `**${s.verified} of ${s.frozen} frozen in-scope requirements verified.** Missing ${s.missing}${s.fixesVerified ? ` (${s.fixesVerified} with a verified fix awaiting review)` : ''} · Uncertain ${s.uncertain} · Untested ${s.untested} · Intentional change ${s.intentional}. Not yet frozen (excluded): ${s.notFrozen}.`,
     ``,
     `This is scoped acceptance evidence for the requirements listed, not a claim of full feature parity or production readiness.`,
     ``,
-    `| Requirement | Result | Target | Expected | Actual | Basis | Candidate |`,
+    `| Requirement | Result on new UI | Target | Expected | Actual | Basis | Verified fix |`,
     `|---|---|---|---|---|---|---|`,
     ...r.rows.map((x) => `| ${x.requirement_id} r${x.revision} | ${label[x.result] ?? x.result} | ${x.target || '—'} | \`${x.expected}\` | \`${x.actual || '—'}\` | ${x.confidence_basis} | ${x.patch_sha ? `\`${x.patch_sha.slice(0, 10)}\`` : '—'} |`),
     ``,
