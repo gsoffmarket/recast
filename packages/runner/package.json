@@ -14,6 +14,7 @@
     "@recast/observations": "workspace:*",
     "@recast/parity": "workspace:*",
     "@recast/db": "workspace:*",
-    "bullmq": "^5.56.0"
+    "bullmq": "^5.56.0",
+    "@recast/coding-agents": "workspace:*"
   }
 }

@@ -277,6 +277,55 @@ function listZip(path: string): Promise<string[]> {
   });
 }
 
+const MAX_ENTRY_BYTES = 20 * 1024 * 1024;
+
+/** Read matching entries from a pack into memory (bounded), after the path check. Never writes to disk. */
+export function readEvidenceEntries(path: string, match: (name: string) => boolean): Promise<Map<string, Buffer>> {
+  return new Promise((resolve, reject) => {
+    yauzl.open(path, { lazyEntries: true, validateEntrySizes: true }, (err, zip) => {
+      if (err || !zip) return reject(err ?? new Error('cannot open evidence pack'));
+      const out = new Map<string, Buffer>();
+      zip.on('entry', (e: yauzl.Entry) => {
+        if (!isSafeEntryPath(e.fileName)) return reject(new Error(`unsafe path in evidence pack: ${e.fileName}`));
+        if (!match(e.fileName) || e.uncompressedSize > MAX_ENTRY_BYTES) return zip.readEntry();
+        zip.openReadStream(e, (e2, s) => {
+          if (e2 || !s) return reject(e2);
+          const chunks: Buffer[] = [];
+          s.on('data', (c: Buffer) => chunks.push(c)).on('end', () => { out.set(e.fileName, Buffer.concat(chunks)); zip.readEntry(); }).on('error', reject);
+        });
+      });
+      zip.on('end', () => resolve(out));
+      zip.on('error', reject);
+      zip.readEntry();
+    });
+  });
+}
+
+export interface NetworkEffect { method: string; path: string; status: number }
+
+/**
+ * State-changing HTTP requests the browser made during a run (from the pack's HAR), with the
+ * given values (e.g. the fixture's query id) replaced by named placeholders. Logins are dropped.
+ */
+export async function extractNetworkEffects(packPath: string, placeholders: Record<string, string> = {}): Promise<NetworkEffect[]> {
+  const files = await readEvidenceEntries(packPath, (n) => n.endsWith('-network.har'));
+  const effects: NetworkEffect[] = [];
+  for (const buf of files.values()) {
+    let har: any;
+    try { har = JSON.parse(buf.toString('utf8')); } catch { continue; }
+    for (const e of har?.log?.entries ?? []) {
+      const method = String(e?.request?.method ?? '');
+      if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) continue;
+      let path: string;
+      try { path = new URL(String(e.request.url)).pathname; } catch { continue; }
+      if (/\/login$|\/auth\//.test(path)) continue;
+      for (const [name, value] of Object.entries(placeholders)) path = path.split(value).join(`{${name}}`);
+      effects.push({ method, path, status: Number(e?.response?.status ?? 0) });
+    }
+  }
+  return effects;
+}
+
 /** Validate size and entry paths, hash the bytes. Throws on traversal or oversize; never extracts. */
 export async function inspectEvidencePack(path: string): Promise<EvidencePack> {
   const s = await stat(path);

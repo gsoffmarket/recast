@@ -15,7 +15,8 @@
     "services:up": "docker-compose up -d",
     "services:down": "docker-compose down",
     "recast": "node --env-file=.env packages/cli/src/main.ts",
-    "worker": "node --env-file=.env packages/cli/src/main.ts worker"
+    "worker": "node --env-file=.env packages/cli/src/main.ts worker",
+    "ui": "node --env-file=.env packages/cli/src/main.ts ui"
   },
   "devDependencies": {
     "typescript": "^5.9.3",

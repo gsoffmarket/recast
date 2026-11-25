@@ -8,7 +8,12 @@ import { kaneVersion, kaneAuthenticated, kaneBalance, TESTED_KANE_VERSION } from
 import { trinoFingerprint } from '@recast/observations';
 import { evaluateRun, baselineStatus, classify, type RunEvaluation } from '@recast/parity';
 import * as db from '@recast/db';
-import { createQueue, createQueueEvents, enqueueAndWait, startWorker, executeRun, type ProjectConfig, type RunJob, type RunSummary } from '@recast/runner';
+import { createQueue, createQueueEvents, enqueueAndWait, startWorker, executeRun, runRepair, type ProjectConfig, type RunJob, type RunSummary } from '@recast/runner';
+import { fileURLToPath } from 'node:url';
+import { writeFile } from 'node:fs/promises';
+import { buildReport, toCsv, toMarkdown } from '@recast/reports';
+import { startWebServer } from '@recast/web';
+import { resolve } from 'node:path';
 
 /** Recast exit codes (not Kane's): 0 ok, 1 confirmed gap, 2 invalid config, 3 inconclusive/infra, 4 cancelled. */
 const EXIT = { ok: 0, gap: 1, config: 2, infra: 3, cancelled: 4 } as const;
@@ -72,7 +77,7 @@ program.command('init')
       const applied = await db.migrate(sql);
       const project = await db.upsertProject(sql, cfg.name, cfg);
       for (const e of cfg.environments) {
-        const fingerprint = await trinoFingerprint(e.baseUrl).catch((err) => ({ error: (err as Error).message }));
+        const fingerprint = await trinoFingerprint(e.apiBaseUrl ?? e.baseUrl).catch((err) => ({ error: (err as Error).message }));
         await db.upsertEnvironment(sql, { project_id: project.id, kind: e.kind, name: e.name, base_url: e.baseUrl, start_path: e.startPath, fingerprint });
       }
       out(`Project ${cfg.name} ready (${cfg.environments.length} environments)${applied.length ? `; applied ${applied.join(', ')}` : ''}.`, { project: project.id, applied });
@@ -99,7 +104,7 @@ program.command('doctor')
       else add('kane.credits', !cfg || bal >= cfg.budget.minBalance ? 'pass' : 'fail', `${bal} credits${cfg ? ` (floor ${cfg.budget.minBalance})` : ''}`);
       if (!cfg) add('project', 'fail', `no project ${opts().project}`, 'recast init --config evaluation/trino/recast.config.json');
       for (const e of cfg?.environments ?? []) {
-        try { const f = await trinoFingerprint(e.baseUrl); add(`env.${e.name}`, f.starting === false ? 'pass' : 'inconclusive', `${e.kind} ${e.baseUrl}${e.startPath} trino ${String(f.version)}`); }
+        try { const f = await trinoFingerprint(e.apiBaseUrl ?? e.baseUrl); add(`env.${e.name}`, f.starting === false ? 'pass' : 'inconclusive', `${e.kind} ${e.baseUrl}${e.startPath} trino ${String(f.version)}`); }
         catch (err) { add(`env.${e.name}`, 'fail', (err as Error).message, 'start the Trino container'); }
       }
     });
@@ -204,6 +209,21 @@ program.command('compare')
     });
   });
 
+program.command('repair')
+  .description('Hand a confirmed MISSING requirement to the coding agent, then re-verify each candidate with Kane and the oracle')
+  .requiredOption('--requirement <id>')
+  .option('--max-attempts <n>', 'repair attempts (default from config)')
+  .action(async (o: { requirement: string; maxAttempts?: string }) => {
+    await withDb(async (sql) => {
+      const recastRoot = resolve(fileURLToPath(new URL('.', import.meta.url)), '../../..');
+      const res = await runRepair(sql, opts().project, o.requirement, { recastRoot, log: (l) => { if (!opts().json) console.log(l); }, ...(o.maxAttempts ? { maxAttempts: Number(o.maxAttempts) } : {}) });
+      out(res.state === 'verified_candidate'
+        ? `VERIFIED CANDIDATE after ${res.attempts} attempt(s): ${res.candidateSha} on ${res.branch}\n  ${res.decision?.explanation ?? ''}`
+        : `UNRESOLVED after ${res.attempts} attempt(s).${res.decision ? `\n  Last result: ${res.decision.status} — ${res.decision.explanation}` : ''}`, res);
+      process.exitCode = res.state === 'verified_candidate' ? EXIT.ok : EXIT.gap;
+    });
+  });
+
 program.command('status')
   .description('Scoped acceptance matrix with real denominators')
   .action(async () => {
@@ -220,6 +240,28 @@ program.command('status')
       const human = [`${verified} of ${rows.length} frozen in-scope requirements verified (${revs.length - rows.length} not yet frozen).`, ...rows.map((r) => `  ${r.requirement.padEnd(22)} r${r.revision}  ${r.status.padEnd(18)} ${r.explanation}`)].join('\n');
       out(human, { verified, frozen: rows.length, notFrozen: revs.length - rows.length, rows });
     });
+  });
+
+program.command('report')
+  .description('Export the scoped acceptance report (markdown, json or csv)')
+  .addOption(new Option('--format <fmt>').choices(['markdown', 'json', 'csv']).default('markdown'))
+  .option('--out <file>', 'write to a file instead of stdout')
+  .action(async (o: { format: 'markdown' | 'json' | 'csv'; out?: string }) => {
+    await withDb(async (sql) => {
+      const { project } = await requireProject(sql);
+      const r = await buildReport(sql, project.id, project.name);
+      const text = o.format === 'json' ? JSON.stringify(r, null, 2) + '\n' : o.format === 'csv' ? toCsv(r) : toMarkdown(r);
+      if (o.out) { await writeFile(o.out, text); console.log(`Wrote ${o.format} report to ${o.out} (${r.hash}).`); } else process.stdout.write(text);
+    });
+  });
+
+program.command('ui')
+  .description('Serve the read-only workspace UI on 127.0.0.1')
+  .option('--port <n>', 'port', '4173')
+  .action(async (o: { port: string }) => {
+    const sql = db.connect();
+    const { url } = startWebServer(sql, opts().project, Number(o.port));
+    console.log(`Recast workspace: ${url}  (read-only; Ctrl-C to stop)`);
   });
 
 program.command('worker').description('Run the queue worker (one mutating run at a time)').action(async () => {

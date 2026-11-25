@@ -35,6 +35,9 @@ importers:
       '@recast/behaviour-spec':
         specifier: workspace:*
         version: link:../behaviour-spec
+      '@recast/coding-agents':
+        specifier: workspace:*
+        version: link:../coding-agents
       '@recast/db':
         specifier: workspace:*
         version: link:../db
@@ -47,18 +50,26 @@ importers:
       '@recast/parity':
         specifier: workspace:*
         version: link:../parity
+      '@recast/reports':
+        specifier: workspace:*
+        version: link:../reports
       '@recast/runner':
         specifier: workspace:*
         version: link:../runner
       '@recast/shared':
         specifier: workspace:*
         version: link:../shared
+      '@recast/web':
+        specifier: workspace:*
+        version: link:../web
       commander:
         specifier: ^14.0.0
         version: 14.0.3
       zod:
         specifier: ^3.25.76
         version: 3.25.76
+
+  packages/coding-agents: {}
 
   packages/db:
     dependencies:
@@ -96,11 +107,23 @@ importers:
         specifier: workspace:*
         version: link:../shared
 
+  packages/reports:
+    dependencies:
+      '@recast/db':
+        specifier: workspace:*
+        version: link:../db
+      '@recast/shared':
+        specifier: workspace:*
+        version: link:../shared
+
   packages/runner:
     dependencies:
       '@recast/behaviour-spec':
         specifier: workspace:*
         version: link:../behaviour-spec
+      '@recast/coding-agents':
+        specifier: workspace:*
+        version: link:../coding-agents
       '@recast/db':
         specifier: workspace:*
         version: link:../db
@@ -121,6 +144,18 @@ importers:
         version: 5.81.6
 
   packages/shared: {}
+
+  packages/web:
+    dependencies:
+      '@recast/db':
+        specifier: workspace:*
+        version: link:../db
+      '@recast/reports':
+        specifier: workspace:*
+        version: link:../reports
+      '@recast/shared':
+        specifier: workspace:*
+        version: link:../shared
 
 packages:
 

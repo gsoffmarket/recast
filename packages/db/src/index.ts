@@ -158,3 +158,47 @@ export async function latestParity(sql: Sql, projectId: string) {
     SELECT DISTINCT ON (requirement_id) requirement_id, revision, status, reason_code, explanation, created_at, spec_hash
     FROM parity_results WHERE project_id = ${projectId} ORDER BY requirement_id, created_at DESC`;
 }
+
+// ---------- repair (M3) ----------
+
+export async function createTask(sql: Sql, t: { project_id: string; requirement_id: string; revision: number; spec_hash: string; parity_result_id: string; base_ref: string; max_attempts: number; task: unknown }): Promise<string> {
+  const id = newId();
+  await sql`INSERT INTO migration_tasks (id, project_id, requirement_id, revision, spec_hash, parity_result_id, base_ref, state, max_attempts, task)
+            VALUES (${id}, ${t.project_id}, ${t.requirement_id}, ${t.revision}, ${t.spec_hash}, ${t.parity_result_id}, ${t.base_ref}, 'queued', ${t.max_attempts}, ${sql.json(t.task as any)})`;
+  return id;
+}
+
+export async function setTaskState(sql: Sql, id: string, state: string): Promise<void> {
+  await sql`UPDATE migration_tasks SET state = ${state}, updated_at = now() WHERE id = ${id}`;
+}
+
+export async function appendTaskEvent(sql: Sql, taskId: string, type: string, payload: unknown): Promise<number> {
+  const [row] = await sql<{ seq: number }[]>`
+    INSERT INTO task_events (task_id, seq, type, payload)
+    VALUES (${taskId}, (SELECT COALESCE(MAX(seq), 0) + 1 FROM task_events WHERE task_id = ${taskId}), ${type}, ${sql.json(payload as any)})
+    RETURNING seq`;
+  return row!.seq;
+}
+
+export async function startAttempt(sql: Sql, taskId: string, attempt: number, branch: string, baseSha: string): Promise<string> {
+  const id = newId();
+  await sql`INSERT INTO agent_attempts (id, task_id, attempt, state, branch, base_sha) VALUES (${id}, ${taskId}, ${attempt}, 'patching', ${branch}, ${baseSha})`;
+  return id;
+}
+
+export async function updateAttempt(sql: Sql, id: string, patch: Record<string, unknown>): Promise<void> {
+  const cols = Object.keys(patch);
+  if (!cols.length) return;
+  const values = Object.fromEntries(Object.entries(patch).map(([k, v]) => [k, v !== null && typeof v === 'object' && !(v instanceof Date) && !Array.isArray(v) ? sql.json(v as any) : v]));
+  await sql`UPDATE agent_attempts SET ${sql(values as any, cols)} WHERE id = ${id}`;
+}
+
+export async function latestParityRow(sql: Sql, projectId: string, reqId: string) {
+  const [row] = await sql<{ id: string; status: string; spec_hash: string; revision: number; decision: any; explanation: string }[]>`
+    SELECT id, status, spec_hash, revision, decision, explanation FROM parity_results WHERE project_id = ${projectId} AND requirement_id = ${reqId} ORDER BY created_at DESC LIMIT 1`;
+  return row;
+}
+
+export async function runEventsOfType(sql: Sql, runId: string, type: string) {
+  return sql<{ seq: number; payload: any }[]>`SELECT seq, payload FROM run_events WHERE run_id = ${runId} AND type = ${type} ORDER BY seq`;
+}

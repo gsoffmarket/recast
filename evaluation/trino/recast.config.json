@@ -6,18 +6,80 @@
       "kind": "source",
       "baseUrl": "http://localhost:8080",
       "startPath": "/ui/",
-      "hints": ["This is the Trino web UI.", "If a login page appears, enter the username {{username}}, leave the password empty and log in."]
+      "hints": [
+        "This is the Trino web UI.",
+        "If a login page appears, enter the username {{username}}, leave the password empty and log in."
+      ]
     },
     {
       "name": "trino-preview",
       "kind": "target",
       "baseUrl": "http://localhost:8080",
       "startPath": "/ui/preview/",
-      "hints": ["This is the Trino web UI.", "If a login page appears, enter the username {{username}}, leave the password empty and log in."]
+      "hints": [
+        "This is the Trino web UI.",
+        "If a login page appears, enter the username {{username}}, leave the password empty and log in."
+      ]
+    },
+    {
+      "name": "trino-preview-candidate",
+      "kind": "candidate",
+      "baseUrl": "http://localhost:5174",
+      "apiBaseUrl": "http://localhost:8080",
+      "startPath": "/ui/preview/",
+      "hints": [
+        "This is the Trino web UI.",
+        "If a login page appears, enter the username {{username}}, leave the password empty and log in."
+      ]
     }
   ],
-  "fixture": { "type": "trino-running-query", "baseUrl": "http://localhost:8080", "user": "recast-m0" },
-  "role": { "username": "recast-m0" },
-  "kane": { "maxSteps": 15, "timeoutSec": 480 },
-  "budget": { "minBalance": 150 }
+  "fixture": {
+    "type": "trino-running-query",
+    "baseUrl": "http://localhost:8080",
+    "user": "recast-m0"
+  },
+  "role": {
+    "username": "recast-m0"
+  },
+  "kane": {
+    "maxSteps": 15,
+    "timeoutSec": 480
+  },
+  "budget": {
+    "minBalance": 150
+  },
+  "repair": {
+    "agent": "claude-code",
+    "candidateEnvironment": "trino-preview-candidate",
+    "candidatePort": 5174,
+    "readyPath": "/ui/preview/",
+    "target": {
+      "baseCheckout": "evaluation/trino/checkouts/trino-481",
+      "appDir": "core/trino-web-ui/src/main/resources/webapp-preview",
+      "allowedPrefixes": [
+        "core/trino-web-ui/src/main/resources/webapp-preview/src/"
+      ],
+      "baseRef": "481"
+    },
+    "attemptsDir": "evaluation/trino/checkouts/attempts",
+    "maxAttempts": 3,
+    "reverifyRuns": 2,
+    "agentTimeoutSec": 1500,
+    "agentAllowedTools": [
+      "Read",
+      "Edit",
+      "Write",
+      "Glob",
+      "Grep",
+      "Bash(npx tsc -b)",
+      "Bash(npm run lint)",
+      "Bash(npm run prettier:check)",
+      "Bash(npm run prettier:format)"
+    ],
+    "protectedPaths": [
+      "packages",
+      "evaluation/trino/requirements",
+      "evaluation/trino/recast.config.json"
+    ]
+  }
 }

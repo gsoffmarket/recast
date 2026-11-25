@@ -12,6 +12,8 @@ export interface EnvironmentConfig {
   name: string;
   kind: 'source' | 'target' | 'candidate';
   baseUrl: string;
+  /** Where the app's API and oracle live, when the UI is served elsewhere (e.g. a candidate dev server). */
+  apiBaseUrl?: string;
   startPath: string;
   /** Navigation hints for this UI. Never names the control the requirement is about. */
   hints: string[];
@@ -39,6 +41,8 @@ export interface RunJob {
   environment: string;
   kind: 'baseline' | 'compare' | 'reverify';
   idempotencyKey: string;
+  /** Candidate commit under test (reverify runs). */
+  candidateSha?: string;
 }
 
 export interface RunSummary {
@@ -99,8 +103,11 @@ export async function executeRun(sql: db.Sql, job: RunJob, signal?: AbortSignal)
 
   try {
     // Preflight: environment fingerprint and budget.
-    const fingerprint = await trinoFingerprint(envCfg.baseUrl);
-    await ev('run.started', { kind: job.kind, environment: envCfg.name, environmentKind: envCfg.kind, requirement: req.id, revision: req.revision, specHash: rev.hash, fingerprint });
+    const fingerprint = await trinoFingerprint(envCfg.apiBaseUrl ?? envCfg.baseUrl);
+    const uiReachable = await fetch(new URL(envCfg.startPath, envCfg.baseUrl)).then((r) => r.ok).catch(() => false);
+    if (!uiReachable) throw new Error(`environment ${envCfg.name} UI is not reachable at ${envCfg.baseUrl}${envCfg.startPath}`);
+    await ev('run.started', { kind: job.kind, environment: envCfg.name, environmentKind: envCfg.kind, requirement: req.id, revision: req.revision, specHash: rev.hash, fingerprint, candidateSha: job.candidateSha ?? null });
+    if (job.candidateSha) await db.updateRun(sql, runId, { candidate_sha: job.candidateSha });
     const before = await kaneBalance();
     if (before === null) throw new BudgetError('Kane balance unavailable: run `kane-cli login`.');
     if (before < cfg.budget.minBalance) throw new BudgetError(`Kane balance ${before} is below the floor ${cfg.budget.minBalance}.`);
@@ -197,3 +204,5 @@ export async function enqueueAndWait(queue: Queue<RunJob, RunSummary>, events: Q
   const j = await queue.add('run', job, { jobId: job.idempotencyKey, removeOnComplete: { age: 86_400 }, removeOnFail: { age: 86_400 }, attempts: 1 });
   return j.waitUntilFinished(events);
 }
+
+export * from './repair.ts';
