@@ -64,6 +64,21 @@ async function taskDetail(sql: db.Sql, id: string) {
   return { ...t, attempts };
 }
 
+async function discovery(sql: db.Sql, projectName: string) {
+  const project = await db.getProject(sql, projectName);
+  if (!project) return null;
+  const runs = await sql<any[]>`SELECT environment, exploration_id, run_id, map_hash, totals, imported_at FROM discoveries WHERE project_id = ${project.id} ORDER BY imported_at DESC`;
+  const items = await sql<any[]>`SELECT kind, key, title, detail, status, linked_requirement, sightings FROM discovery_items WHERE project_id = ${project.id} ORDER BY kind, title`;
+  return { runs, items };
+}
+
+async function checks(sql: db.Sql, projectName: string) {
+  const project = await db.getProject(sql, projectName);
+  if (!project) return [];
+  return sql<any[]>`SELECT label, requirement_id, revision, ref, candidate_sha, expected, verdicts, decision->>'status' AS status, decision->'regression' AS regression, as_expected, gate, created_at
+                    FROM candidate_checks WHERE project_id = ${project.id} ORDER BY created_at DESC`;
+}
+
 /** SSE over a persisted event table. Resumes from Last-Event-ID; ends when the owner is terminal and drained. */
 async function streamEvents(req: IncomingMessage, res: ServerResponse, sql: db.Sql, kind: 'run' | 'task', id: string) {
   res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-store', connection: 'keep-alive' });
@@ -99,6 +114,8 @@ export function startWebServer(sql: db.Sql, projectName: string, port = 4173) {
       let m = p.match(/^\/api\/requirements\/(REQ-[A-Z0-9-]+)$/);
       if (m) { const d = await requirementDetail(sql, projectName, m[1]!); return d ? json(res, 200, d) : json(res, 404, { error: 'unknown requirement' }); }
       if (p === '/api/tasks') return json(res, 200, await tasks(sql, projectName));
+      if (p === '/api/discovery') return json(res, 200, await discovery(sql, projectName));
+      if (p === '/api/checks') return json(res, 200, await checks(sql, projectName));
       m = p.match(/^\/api\/tasks\/([0-9a-f-]{36})$/);
       if (m) { const t = await taskDetail(sql, m[1]!); return t ? json(res, 200, t) : json(res, 404, { error: 'unknown task' }); }
       m = p.match(/^\/api\/(runs|tasks)\/([0-9a-f-]{36})\/events$/);

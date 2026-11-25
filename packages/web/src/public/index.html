@@ -133,6 +133,7 @@ pre.report { margin: 0; white-space: pre-wrap; font: 400 13px/1.6 var(--font-mon
     </div>
     <nav class="nav">
       <a href="#parity" data-view="parity"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="2" y="2.5" width="12" height="11" rx="2"/><path d="M2 6.5h12M6 6.5v7"/></svg>Parity</a>
+      <a href="#discovery" data-view="discovery"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>Discovery</a>
       <a href="#repair" data-view="repair"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M5 4L2 8l3 4M11 4l3 4-3 4M9.5 3l-3 10"/></svg>Repair</a>
       <a href="#report" data-view="report"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M4 1.5h5.5L12.5 4.5V14.5h-8.5z"/><path d="M6.5 8h4M6.5 11h4"/></svg>Report</a>
     </nav>
@@ -301,6 +302,27 @@ function openRun(id, label) {
   stream(`/api/runs/${id}/events`, list);
 }
 
+// ---------- discovery ----------
+async function discoveryView() {
+  await frame('discovery');
+  const d = await api('/api/discovery');
+  const view = $('#view');
+  const head = h('div', {}, h('div', { class: 'eyebrow' }, 'Observe'), h('h1', {}, 'Discovery'), h('p', { class: 'lede' }, 'What Kane Exploration found in the source app. Discovery shows what exists, not what it does: a candidate becomes a requirement only after real baseline runs.'));
+  if (!d || !d.runs.length) { view.replaceChildren(head, h('div', { class: 'panel empty' }, h('h3', {}, 'No exploration imported yet'), 'Map the source app with Kane, then import it.', h('div', { style: 'max-width:520px;margin:16px auto 0' }, cmd('pnpm recast discover run --max-leases 8')))); return; }
+  const by = (k) => d.items.filter((i) => i.kind === k);
+  const r0 = d.runs[0];
+  const candStatus = (c) => c.linked_requirement ? h('span', { class: 'badge b-frozen' }, svg(GLYPH.ok), `→ ${c.linked_requirement}`) : badge('untested');
+  view.replaceChildren(head,
+    h('div', { class: 'summary' }, h('span', { class: 'big' }, String(by('candidate').length)), h('span', { class: 'sec' }, `candidate requirements from ${by('screen').length} screens and ${by('flow').length} flows · ${by('finding').length} findings · exploration ${short(r0.exploration_id)} on ${r0.environment}`)),
+    h('div', { class: 'panel' }, h('div', { class: 'head' }, h('h2', {}, 'Candidates'), h('span', { class: 'muted', style: 'font-size:12px' }, 'linked = covered by a requirement')),
+      h('div', { class: 'tbl-wrap' }, h('table', {}, h('thead', {}, h('tr', {}, ['Candidate', 'Where', 'Why', 'Status'].map((c) => h('th', { scope: 'col' }, c)))),
+        h('tbody', {}, by('candidate').map((c) => h('tr', {}, h('td', { style: 'min-width:180px' }, c.title), h('td', { class: 'id', style: 'white-space:normal' }, c.detail.screenUrl || '—'), h('td', { class: 'sec', style: 'white-space:normal;min-width:260px;max-width:460px' }, c.detail.why || ''), h('td', {}, candStatus(c)))))))),
+    h('div', { class: 'grid2' },
+      h('div', { class: 'panel' }, h('div', { class: 'head' }, h('h2', {}, 'Screens')), h('div', { class: 'body', style: 'display:grid;gap:12px' }, by('screen').map((x) => h('div', {}, h('div', {}, x.title), h('div', { class: 'id' }, x.key), h('div', { class: 'muted', style: 'font-size:12px;margin-top:4px' }, `${x.detail.controls.length} controls · ${x.detail.controls.filter((c) => c.scope === 'policy_blocked').map((c) => c.name).join(', ') || 'none'} not pressed by policy`))))),
+      h('div', { class: 'panel' }, h('div', { class: 'head' }, h('h2', {}, 'Verified flows')), h('div', { class: 'body', style: 'display:grid;gap:12px' }, by('flow').map((x) => h('div', {}, h('div', {}, x.title.trim() || '(unnamed)'), h('div', { class: 'muted', style: 'font-size:12px' }, (x.detail.steps || []).slice(0, 6).join(' → ') || x.detail.description || '')))))),
+  );
+}
+
 // ---------- repair ----------
 function renderDiff(patch) {
   if (!patch) return h('p', { class: 'muted' }, 'No patch.');
@@ -318,11 +340,15 @@ async function repairView(taskId) {
   const tasks = await api('/api/tasks');
   const view = $('#view');
   const head = h('div', {}, h('div', { class: 'eyebrow' }, 'Migration'), h('h1', {}, 'Repair'), h('p', { class: 'lede' }, 'A confirmed gap becomes a task. The coding agent works in an isolated worktree of the target; Recast checks paths, the build and then re-runs the frozen requirement with Kane and the oracle.'));
-  if (!tasks.length) { view.replaceChildren(head, h('div', { class: 'panel empty' }, h('h3', {}, 'No repair tasks yet'), 'Run a comparison until a requirement is Missing, then start a repair.', h('div', { style: 'max-width:520px;margin:16px auto 0' }, cmd('pnpm recast repair --requirement REQ-QRY-CANCEL')))); return; }
+  const checks = await api('/api/checks');
+  const checksPanel = checks.length ? h('div', { class: 'panel' }, h('div', { class: 'head' }, h('h2', {}, 'Candidate checks'), h('span', { class: 'muted', style: 'font-size:12px' }, 'harness patches and controls · not counted as parity')),
+    h('div', { class: 'tbl-wrap' }, h('table', {}, h('thead', {}, h('tr', {}, ['Check', 'Requirement', 'Candidate', 'Runs', 'Result', 'Expected'].map((c) => h('th', { scope: 'col' }, c)))),
+      h('tbody', {}, checks.map((c) => h('tr', {}, h('td', {}, c.label), h('td', { class: 'id' }, `${c.requirement_id} r${c.revision}`), h('td', { class: 'id' }, `${c.ref} @ ${short(c.candidate_sha, 10)}`), h('td', { class: 'id' }, c.verdicts.join(', ')), h('td', {}, badge(c.status)), h('td', {}, h('span', { class: `badge b-${c.as_expected ? 'passed' : 'gate_failed'}` }, svg(GLYPH[c.as_expected ? 'ok' : 'miss']), c.as_expected ? `${c.expected} ✓` : `expected ${c.expected}`)))))))) : null;
+  if (!tasks.length) { view.replaceChildren(head, checksPanel, h('div', { class: 'panel empty' }, h('h3', {}, 'No repair tasks yet'), 'Run a comparison until a requirement is Missing, then start a repair.', h('div', { style: 'max-width:520px;margin:16px auto 0' }, cmd('pnpm recast repair --requirement REQ-QRY-CANCEL')))); return; }
   const sel = taskId || tasks[0].id;
   const t = await api(`/api/tasks/${sel}`);
   closeStreams();
-  view.replaceChildren(head,
+  view.replaceChildren(head, checksPanel,
     h('div', { class: 'panel' }, h('div', { class: 'tbl-wrap' }, h('table', {}, h('thead', {}, h('tr', {}, ['Task', 'Requirement', 'State', 'Attempts', 'Updated'].map((c) => h('th', { scope: 'col' }, c)))),
       h('tbody', {}, tasks.map((x) => h('tr', { class: 'sel', tabindex: '0', 'aria-selected': String(x.id === sel), onclick: () => repairView(x.id) }, h('td', { class: 'id' }, short(x.id)), h('td', { class: 'id' }, `${x.requirement_id} r${x.revision}`), h('td', {}, badge(x.state)), h('td', { class: 'id' }, `${x.attempts} / ${x.max_attempts}`), h('td', { class: 'id' }, time(x.updated_at)))))))),
     h('div', { class: 'grid2' },
@@ -353,7 +379,7 @@ async function reportView() {
 async function route() {
   closeStreams();
   const [view, arg] = (location.hash.replace(/^#/, '') || 'parity').split('-');
-  try { if (view === 'repair') await repairView(arg); else if (view === 'report') await reportView(); else await parityView(); }
+  try { if (view === 'repair') await repairView(arg); else if (view === 'report') await reportView(); else if (view === 'discovery') await discoveryView(); else await parityView(); }
   catch (e) { $('#view').replaceChildren(h('div', { class: 'panel empty' }, h('h3', {}, 'Could not load this view'), String(e.message || e), h('p', {}, 'Check that Postgres is running (docker-compose up -d) and the project exists (pnpm recast init).'))); }
 }
 addEventListener('hashchange', route);
