@@ -41,6 +41,9 @@ importers:
       '@recast/db':
         specifier: workspace:*
         version: link:../db
+      '@recast/discovery':
+        specifier: workspace:*
+        version: link:../discovery
       '@recast/kane-adapter':
         specifier: workspace:*
         version: link:../kane-adapter
@@ -79,6 +82,12 @@ importers:
       postgres:
         specifier: ^3.4.7
         version: 3.4.9
+
+  packages/discovery:
+    dependencies:
+      '@recast/shared':
+        specifier: workspace:*
+        version: link:../shared
 
   packages/kane-adapter:
     dependencies:

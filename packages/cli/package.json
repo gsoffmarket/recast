@@ -19,6 +19,7 @@
     "zod": "^3.25.76",
     "@recast/coding-agents": "workspace:*",
     "@recast/reports": "workspace:*",
-    "@recast/web": "workspace:*"
+    "@recast/web": "workspace:*",
+    "@recast/discovery": "workspace:*"
   }
 }
