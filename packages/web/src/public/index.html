@@ -347,6 +347,45 @@ h1[tabindex="-1"]:focus, h1[tabindex="-1"]:focus-visible { outline: none; }
 @keyframes drift { 50% { transform: translateX(8px); } }
 @keyframes twinkle { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .rv { opacity: 1; transform: none; } .result:hover, .req-card:hover, .thumb:hover, .proof-frame img:hover { transform: none; } }
+
+/* ---- landing depth: fix, guardrails, reproduce, closer, footer ---- */
+h2.big { font-size: clamp(26px, 3.4vw, 40px); line-height: 1.1; letter-spacing: -0.03em; font-weight: 400; color: var(--text-display); margin: 0; text-wrap: balance; }
+.fix { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 40px; align-items: start; padding: 24px 0; }
+.fix-copy { display: grid; gap: 18px; position: sticky; top: 88px; }
+.fix-copy .sec { font-size: 15px; line-height: 1.6; margin: 0; }
+.checks { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.checks li { display: grid; grid-template-columns: 18px 1fr; gap: 10px; font-size: 13.5px; color: var(--text-secondary); }
+.checks li svg { width: 16px; height: 16px; margin-top: 2px; color: var(--text-tertiary); }
+.checks li.ok svg { color: var(--ok); }
+.checks b { color: var(--text-primary); font-weight: 500; }
+.fix-diff, .term { border: 1px solid var(--border-default); border-radius: var(--r-lg); background: var(--bg-surface-1); overflow: hidden; box-shadow: 0 24px 60px rgba(0,0,0,.5); min-width: 0; }
+.fix-diff > div:last-child { max-height: 440px; overflow: auto; padding: 12px; }
+.fix-diff .diff { border-radius: var(--r-sm); }
+.fix-head { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-bottom: 1px solid var(--border-subtle); background: var(--bg-surface-2); font: 400 12px/1 var(--font-mono); color: var(--text-tertiary); }
+.dots3 { display: inline-flex; gap: 6px; } .dots3 i { width: 9px; height: 9px; border-radius: 50%; background: var(--bg-surface-3); border: 1px solid var(--border-default); }
+.guards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.guard { display: grid; gap: 10px; align-content: start; padding: 20px; border-radius: var(--r-md); background: var(--bg-surface-2); border: 1px solid var(--border-subtle); transition: border-color var(--base) ease, transform var(--base) var(--ease-out); }
+.guard:hover { border-color: var(--border-strong); transform: translateY(-2px); }
+.guard .gi { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: var(--bg-selected); color: var(--iris-text); }
+.guard .gi svg { width: 16px; height: 16px; }
+.guard h3 { margin: 4px 0 0; font-size: 15px; font-weight: 500; color: var(--text-primary); }
+.guard p { margin: 0; font-size: 13px; line-height: 1.55; color: var(--text-secondary); }
+.guard .hash { font: 400 11px/1.4 var(--font-mono); color: var(--verdant-text); overflow-wrap: anywhere; }
+.repro { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 40px; align-items: center; padding: 24px 0; }
+.repro .sec { font-size: 15px; line-height: 1.6; margin: 0; }
+.term pre { margin: 0; padding: 16px 18px; overflow-x: auto; font: 400 12.5px/22px var(--font-mono); color: var(--text-primary); display: grid; }
+.term pre .c { color: var(--text-tertiary); }
+.term pre i { font-style: normal; color: var(--iris-text); }
+.copy { margin-left: auto; height: 24px; padding: 0 10px; border-radius: var(--r-pill); border: 1px solid var(--border-default); background: transparent; color: var(--text-secondary); font: 500 11.5px/1 var(--font-sans); cursor: pointer; }
+.copy:hover { color: var(--text-primary); border-color: var(--border-strong); }
+.closer { text-align: center; display: grid; gap: 22px; justify-items: center; padding: 64px 16px; border-radius: var(--r-lg); border: 1px solid var(--border-subtle); background: radial-gradient(120% 140% at 50% 0%, rgba(128,82,255,.16), transparent 60%), var(--bg-surface-1); }
+.closer h2 { font-size: clamp(28px, 4vw, 48px); line-height: 1.08; letter-spacing: -0.035em; font-weight: 400; color: var(--text-display); margin: 0; max-width: 20ch; text-wrap: balance; }
+.foot { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; padding-top: 28px; border-top: 1px solid var(--border-subtle); font-size: 13px; }
+.foot .brand-f { display: grid; gap: 2px; margin-right: auto; } .foot .brand-f b { color: var(--text-display); font-weight: 500; } .foot .brand-f span { color: var(--text-tertiary); font-size: 12px; }
+.foot nav { display: flex; gap: 18px; flex-wrap: wrap; } .foot nav a { color: var(--text-secondary); text-decoration: none; } .foot nav a:hover { color: var(--text-primary); }
+@media (max-width: 1000px) { .guards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 900px) { .fix, .repro { grid-template-columns: 1fr; gap: 24px; } .fix-copy { position: static; } }
+@media (max-width: 520px) { .guards { grid-template-columns: 1fr; } .closer { padding: 44px 16px; } }
 </style>
 </head>
 <body>
@@ -490,6 +529,26 @@ async function landing() {
   const cancel = await api('/api/requirements/REQ-QRY-CANCEL').catch(() => null);
   const c = cancel?.compare;
   const fixed = !!byId['REQ-QRY-CANCEL']?.patch_sha;
+  const att = (cancel?.tasks || []).flatMap((t) => t.attempts).reverse().find((a) => a.state === 'verified') || null;
+  const reg = att?.decision?.regression?.checked || [];
+  const files = att?.patch ? (att.patch.match(/^diff --git a\/\S+ b\/(\S+)/gm) || []).map((l) => l.split(' b/')[1]) : [];
+  const fixSection = att ? h('section', { class: 'fix' },
+    h('div', { class: 'fix-copy' },
+      h('div', { class: 'eyebrow' }, 'The fix, from evidence alone'),
+      h('h2', { class: 'big' }, 'A coding agent wrote it. Recast decided whether to trust it.'),
+      h('p', { class: 'sec' }, 'Claude Code got the failing requirement, Kane\'s screenshots and the network request the legacy UI sent, and nothing else. It worked in a sealed copy of Trino\'s source. Its own summary was never used to judge the result.'),
+      h('ul', { class: 'checks' },
+        (att.gate?.steps || []).length ? h('li', { class: 'ok' }, svg(GLYPH.ok), h('span', {}, h('b', {}, 'Build gate passed'), ` ${att.gate.steps.map((x) => x.name.replace(/ \(.*\)/, '')).join(', ')}`)) : null,
+        h('li', { class: 'ok' }, svg(GLYPH.ok), h('span', {}, h('b', {}, 'Kane re-ran the frozen requirement'), ` ${att.decision?.explanation?.replace(/^All assertions passed in /, 'killed the query in ').replace(/ target runs\.$/, ' runs') || ''}`)),
+        reg.length ? h('li', { class: 'ok' }, svg(GLYPH.ok), h('span', {}, h('b', {}, 'No regressions'), ` ${reg.map((x) => `${x.requirementId} still ${x.status}`).join(', ')}`)) : null,
+        h('li', {}, svg(GLYPH.code), h('span', {}, h('b', {}, `${files.length} files, ${att.tool_uses} tool calls`), ` in ${Math.round(att.agent_ms / 1000)}s for $${Number(att.agent_cost_usd).toFixed(2)} of model time`))),
+      h('a', { class: 'btn-line', href: '#/requirements/REQ-QRY-CANCEL', style: 'justify-self:start' }, 'Open the full story →')),
+    h('div', { class: 'fix-diff' }, h('div', { class: 'fix-head' }, h('span', { class: 'dots3' }, h('i'), h('i'), h('i')), h('span', {}, `candidate ${short(att.candidate_sha, 7)} · ${files.length} files under src/`)), renderDiff(att.patch))) : null;
+  const guard = (g, t, d, extra) => h('div', { class: 'guard' }, h('span', { class: 'gi' }, svg(GLYPH[g])), h('h3', {}, t), h('p', {}, d), extra || null);
+  const term = (lines) => h('div', { class: 'term' },
+    h('div', { class: 'fix-head' }, h('span', { class: 'dots3' }, h('i'), h('i'), h('i')), h('span', {}, 'zsh'),
+      h('button', { class: 'copy', type: 'button', onclick: (e) => { navigator.clipboard?.writeText(lines.filter((l) => !l.startsWith('#')).join('\n')); e.target.textContent = 'Copied'; setTimeout(() => (e.target.textContent = 'Copy'), 1400); } }, 'Copy')),
+    h('pre', {}, lines.map((l) => h('span', { class: l.startsWith('#') ? 'c' : '' }, l.startsWith('#') ? l : h('span', {}, h('i', {}, '$ '), l)))));
   const card = (id, title, desc, extra) => { const x = byId[id]; return x ? h('a', { class: 'result', href: `#/requirements/${id}` },
     h('div', { class: 'chipline' }, h('span', { class: 'muted', style: 'font-size:11.5px' }, 'New UI:'), badge(x.result), extra || null),
     h('div', { class: 'n' }, title), h('div', { class: 'sec', style: 'font-size:13.5px' }, desc), h('span', { class: 'go' }, 'See the evidence →')) : null; };
@@ -526,7 +585,30 @@ async function landing() {
         h('div', {}, h('b', {}, '3 · Compare'), h('span', {}, 'Same intent on the new UI; the app\'s API decides, not the test agent.')),
         h('div', {}, h('b', {}, '4 · Repair'), h('span', {}, 'A coding agent fixes the gap in a sealed copy, from evidence only.')),
         h('div', {}, h('b', {}, '5 · Prove'), h('span', {}, 'Kane re-runs the frozen requirement plus a regression check.')))),
+    fixSection,
+    h('section', { style: 'display:grid;gap:18px' }, h('div', { class: 'eyebrow' }, 'Built so the verdict cannot be gamed'),
+      h('h2', { class: 'big', style: 'max-width:22ch' }, 'The test agent and the coding agent both report. Neither decides.'),
+      h('div', { class: 'guards' },
+        guard('search', 'The app is the judge', 'Every verdict comes from Trino\'s own API: the query is either killed or still running. Kane\'s pass or fail is recorded but never used, and in several runs it was wrong.'),
+        guard('flag', 'Two runs or it does not count', 'A requirement is established only after two matching runs on the legacy UI, and a gap only after two consistent runs on the new one.'),
+        guard('lock', 'Frozen and hashed', 'Once established, a requirement is locked by its content hash and the database refuses edits to the frozen row.', cancel?.hash ? h('code', { class: 'hash' }, short(cancel.hash, 23) + '…') : null),
+        guard('miss', 'Cheating is rejected', 'Three scripted agents tried to rewrite the spec, rewrite the frozen row in Postgres and edit outside the allowed folder. All three were rejected before re-verification.'))),
+    h('section', { class: 'repro' },
+      h('div', { style: 'display:grid;gap:14px;align-content:start' }, h('div', { class: 'eyebrow' }, 'Reproduce it'),
+        h('h2', { class: 'big' }, 'Every number on this page comes from commands you can run.'),
+        h('p', { class: 'sec' }, `Trino 481 in Docker, Kane CLI ${r.versions.kaneCli ?? ''}, Postgres and Redis. The three cheating checks need no model and no credits.`),
+        h('div', { class: 'cta' }, h('a', { class: 'btn-line', href: `${REPO}#reproduce-it`, target: '_blank', rel: 'noopener' }, 'Full instructions ↗'))),
+      term(['# freeze what the legacy UI does', 'pnpm recast baseline --requirement REQ-QRY-CANCEL --runs 2', 'pnpm recast freeze --requirement REQ-QRY-CANCEL', '# check the new UI against it', 'pnpm recast compare --requirement REQ-QRY-CANCEL --target trino-preview --runs 2', '# let a coding agent fix the gap, then re-verify', 'pnpm recast repair --requirement REQ-QRY-CANCEL --max-attempts 3', 'pnpm recast report --format markdown'])),
+    h('section', { class: 'closer' },
+      h('h2', {}, 'Ship the rewrite without losing what users rely on.'),
+      h('div', { class: 'cta', style: 'justify-content:center' },
+        h('a', { class: 'btn-primary', href: '#/requirements/REQ-QRY-CANCEL' }, 'See the evidence'),
+        h('a', { class: 'btn-line', href: REPO, target: '_blank', rel: 'noopener' }, 'Star on GitHub ↗'))),
     h('p', { class: 'muted', style: 'font-size:12.5px' }, `Snapshot of real local runs (Kane CLI ${r.versions.kaneCli ?? ''}, trinodb/trino:481). Reproduce it with the commands in the README.`),
+    h('footer', { class: 'foot' },
+      h('div', { class: 'brand-f' }, h('b', {}, 'Recast'), h('span', {}, 'Behaviour parity for UI migrations')),
+      h('nav', { 'aria-label': 'Footer' }, h('a', { href: '#/parity' }, 'Requirements'), h('a', { href: '#/discovery' }, 'Discovery'), h('a', { href: REPO, target: '_blank', rel: 'noopener' }, 'GitHub'), h('a', { href: `${REPO}/blob/main/LICENSE`, target: '_blank', rel: 'noopener' }, 'Apache-2.0')),
+      h('span', { class: 'muted' }, 'Built with Kane CLI by TestMu AI')),
   );
 }
 
@@ -765,7 +847,7 @@ function motion() {
     }
   }, { rootMargin: '0px 0px -8% 0px' });
   const groups = new Map();
-  page().querySelectorAll('.result, .req-card, .steps5 > div, .numbers > div, .stat, .life li, .netdiff > *, .cmp .step').forEach((el) => {
+  page().querySelectorAll('.result, .req-card, .steps5 > div, .numbers > div, .stat, .life li, .netdiff > *, .cmp .step, .guard, .fix-diff, .term, .closer').forEach((el) => {
     const top = el.getBoundingClientRect().top;
     const key = el.parentElement; const i = groups.get(key) ?? 0; groups.set(key, i + 1);
     if (top < vh) return;
