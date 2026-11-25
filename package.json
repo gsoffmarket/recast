@@ -1,8 +1,29 @@
 {
   "name": "recast",
+  "version": "0.4.0",
   "private": true,
-  "description": "Rebuild the software. Keep the behaviour.",
+  "description": "Rebuild the software. Keep the behaviour. Behaviour parity for UI migrations: observe a legacy app with Kane CLI, freeze requirements, find gaps in the replacement, let a coding agent fix them, and verify independently.",
   "license": "Apache-2.0",
+  "author": "George Ekere",
+  "homepage": "https://github.com/gsoffmarket/recast#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gsoffmarket/recast.git"
+  },
+  "bugs": {
+    "url": "https://github.com/gsoffmarket/recast/issues"
+  },
+  "keywords": [
+    "kane-cli",
+    "testmu-ai",
+    "ui-migration",
+    "behaviour-parity",
+    "legacy-modernization",
+    "coding-agent",
+    "claude-code",
+    "e2e-testing",
+    "trino"
+  ],
   "packageManager": "pnpm@9.15.9",
   "engines": {
     "node": ">=22"
