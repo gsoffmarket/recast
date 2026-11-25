@@ -297,6 +297,12 @@ details.setup > summary { color: var(--text-tertiary); font-size: 12.5px; paddin
   .cmp-tabs { display: flex; }
   .cmp > [data-key]:not(.active), .netdiff > [data-key]:not(.active) { display: none; }
 }
+
+/* ---- hero seam restored; proof row below ---- */
+.proof { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.proof-frame img { aspect-ratio: 16 / 9; }
+@media (max-width: 900px) { .proof { grid-template-columns: minmax(0, 1fr); } .proof-frame img { aspect-ratio: 16 / 7; } }
+@media (max-width: 900px) { .hero .seam { max-width: 200px; justify-self: start; } }
 </style>
 </head>
 <body>
@@ -423,6 +429,13 @@ function proofFrame(run, label, tone, i) {
     h('code', { class: run?.network?.length ? 'hit' : 'none' }, net));
 }
 
+/** The seam: a legacy block, a dotted seam, the new block, the amber spark. Decorative. */
+function seamArt() {
+  const el = h('div', { class: 'seam', 'aria-hidden': 'true' });
+  el.innerHTML = '<svg viewBox="0 0 420 300"><rect x="0" y="40" width="130" height="220" rx="24" fill="#15846e"/><g fill="#9a9a9a">' + Array.from({ length: 12 }, (_, i) => `<circle cx="172" cy="${52 + i * 18}" r="1.6"/><circle cx="196" cy="${52 + i * 18}" r="1.6"/>`).join('') + '</g><rect x="236" y="0" width="184" height="210" rx="24" fill="#8052ff"/><rect x="236" y="230" width="96" height="48" rx="24" fill="#ffb829"/></svg>';
+  return el;
+}
+
 async function landing() {
   const o = await shell('landing');
   const r = o.report, s = r.scope;
@@ -443,10 +456,12 @@ async function landing() {
           h('a', { class: 'btn-line', href: '#/parity' }, 'All requirements'),
           h('a', { class: 'btn-ghost', href: REPO, target: '_blank', rel: 'noopener' }, 'GitHub ↗')),
         h('p', { class: 'cred' }, `Built with Kane CLI by TestMu AI · Trino 481 · ${r.runs.total} real Kane runs · open source`)),
-      c ? h('div', { class: 'proof', 'aria-label': 'The same task on three versions of the UI' },
+      seamArt()),
+    c ? h('section', { style: 'display:grid;gap:14px' }, h('div', { class: 'eyebrow' }, 'Same task, three versions of the UI'),
+      h('div', { class: 'proof', 'aria-label': 'The same task on three versions of the UI' },
         proofFrame(c.source, 'Legacy UI: has Kill', 'ok', 0),
         proofFrame(c.target, 'New UI: Kill is missing', 'fail', 1),
-        c.candidate ? proofFrame(c.candidate, 'Agent\'s fix: Kill restored', 'ok', 2) : null) : null),
+        c.candidate ? proofFrame(c.candidate, 'Agent\'s fix: Kill restored', 'ok', 2) : null)) : null,
     h('section', { class: 'numbers' },
       h('div', {}, h('b', {}, String(s.frozen)), h('span', {}, 'frozen requirements')),
       h('div', {}, h('b', {}, String(s.missing)), h('span', {}, 'real gaps found')),
