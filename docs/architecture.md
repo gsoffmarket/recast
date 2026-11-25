@@ -18,10 +18,10 @@ recast CLI ──▶ BullMQ (Redis) ──▶ worker ──▶ fixture ─▶ Ka
 | `shared` | canonical JSON, content hashes, result names, redaction | anything stateful |
 | `behaviour-spec` | requirement schema, frozen hash, objective compilation | decide pass/fail |
 | `kane-adapter` | `kane-cli` subprocess, NDJSON parsing, exit-code mapping, evidence packs | judge business outcomes |
-| `observations` | Trino REST oracle, running-query fixture, Kane page readings as `ui.*` | invent missing values |
+| `observations` | generic HTTP fixture and oracle (config only), Trino REST oracle and running-query fixture, Kane page readings as `ui.*` | invent missing values |
 | `parity` | typed comparators and the classifier | read Kane's verdict |
 | `db` | schema, migrations, repositories | business decisions |
-| `runner` | one run end to end, the queue, the repair loop | trust the agent's claims |
+| `runner` | project config schema and adapter selection, one run end to end, the queue, the repair loop | trust the agent's claims |
 | `coding-agents` | worktrees, Claude Code driver, diff guard, build gate, candidate server | write specs or verifier code |
 | `reports` | acceptance report (markdown, JSON, CSV) | include local paths or secrets |
 | `web` | read-only workspace UI on 127.0.0.1 | mutate state or run commands |

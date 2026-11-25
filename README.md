@@ -70,7 +70,7 @@ All results measured on 25 Nov 2026 with Kane CLI 0.10.9 against `trinodb/trino:
 | **Guardrails** | Three scripted adversarial agents (rewrite the frozen spec, rewrite the frozen row in Postgres, edit outside the allowed folder) were all rejected before any re-verification; the spec stayed byte-identical. |
 | **Kane is not the judge** | In several runs Kane's own verdict was wrong: it called real gaps "agent missteps" and failed runs where the kill had happened. Recast classified every one correctly from the oracle. |
 
-Also included: a workspace UI (requirement stories with a step-by-step legacy / new / fixed comparison, Kane screenshots, the network request each version sent, a "Why?" for every verdict, discovery inbox, cost and trend), an acceptance report with real denominators, per-run credit accounting from the Kane balance, 43 unit tests and CI.
+Also included: a workspace UI (requirement stories with a step-by-step legacy / new / fixed comparison, Kane screenshots, the network request each version sent, a "Why?" for every verdict, discovery inbox, cost and trend), an acceptance report with real denominators, per-run credit accounting from the Kane balance, a `recast new` scaffolder with a config-only HTTP fixture and oracle for other apps, 55 unit tests and CI.
 
 ## Reproduce it
 
@@ -133,9 +133,13 @@ Kane runs cost credits (about 25–65 per run in this case, measured from the ba
 
 ### Use it on your own app
 
-1. Write a project config like [evaluation/trino/recast.config.json](evaluation/trino/recast.config.json): a source environment (the legacy UI), a target environment (the new UI), the login role, and the repair target (repo path, app folder, allowed paths).
-2. Provide a fixture and an oracle for your domain in [packages/observations](packages/observations/src/index.ts): the fixture sets up a fresh, independent starting state per run; the oracle reads the outcome from your app's API or database. Kane page readings (`ui.*`) work without any code for display requirements.
-3. Run `recast discover run` to map the legacy app, add requirements for the candidates you care about, then baseline, freeze, compare and repair as above.
+Apps with an HTTP API need no code: the fixture (a fresh starting state per run) and the oracle (the real outcome) are declared in JSON.
+
+```bash
+pnpm recast new ../my-app-parity --legacy-url http://localhost:3000 --new-url http://localhost:3001
+```
+
+This writes a validated `recast.config.json`, an example requirement and the next commands to run. Point the fixture at the API call that creates a fresh record, point the oracle at the call that reads its state, then `init`, `doctor`, baseline, freeze, compare and repair as above. The full walkthrough is in [docs/your-own-app.md](docs/your-own-app.md).
 
 ## Project structure
 
