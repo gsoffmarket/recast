@@ -1,0 +1,14 @@
+{
+  "name": "@recast/db",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "Apache-2.0",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@recast/shared": "workspace:*",
+    "postgres": "^3.4.7"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "name": "@recast/behaviour-spec",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "Apache-2.0",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@recast/shared": "workspace:*",
+    "zod": "^3.25.76"
+  }
+}

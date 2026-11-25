@@ -1,0 +1,18 @@
+{
+  "id": "REQ-QRY-CANCEL",
+  "revision": 1,
+  "objective": "A user can cancel a running query from that query's page in the web UI",
+  "role": "web-ui-user",
+  "fixture": "trino-481-running-query-v1",
+  "inputs": {},
+  "action_intent": "Open the details page of the query with ID {{query_id}}, which is currently running, and cancel that query using only the web UI. Then read the query state shown on its details page and store it as query_state.",
+  "oracle": "trino-rest-v1",
+  "settle_ms": 10000,
+  "assertions": [
+    { "path": "query.state", "operator": "equals", "expected": "FAILED" },
+    { "path": "query.errorCode", "operator": "in", "expected": ["ADMINISTRATIVELY_KILLED", "USER_CANCELED"] }
+  ],
+  "provenance": "source-observed",
+  "scope": ["query-lifecycle"],
+  "source_evidence": []
+}

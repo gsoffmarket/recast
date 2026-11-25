@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Recast</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300..700&family=Geist+Mono:wght@400..600&display=swap">
+<style>
+/* Recast design system: Void theme tokens (see the Recast design system artifact). */
+:root {
+  color-scheme: dark;
+  --bg-canvas: #000000; --bg-surface-1: #0a0a0a; --bg-surface-2: #111111; --bg-surface-3: #1a1a1a;
+  --bg-hover: rgba(255,255,255,.05); --bg-selected: rgba(128,82,255,.14);
+  --border-subtle: rgba(255,255,255,.08); --border-default: rgba(255,255,255,.12); --border-strong: rgba(255,255,255,.22);
+  --text-display: #ffffff; --text-primary: #ededed; --text-secondary: #bdbdbd; --text-tertiary: #9a9a9a;
+  --iris: #8052ff; --iris-hover: #9068ff; --iris-text: #a88bff; --on-iris: #ffffff; --focus-ring: #a88bff;
+  --saffron: #ffb829; --on-saffron: #000; --verdant: #15846e; --verdant-text: #2ec4a0;
+  --ok: #3dd68c; --ok-bg: rgba(48,164,108,.15); --miss: #ff9592; --miss-bg: rgba(229,72,77,.15);
+  --chg: #70b8ff; --chg-bg: rgba(0,144,255,.15); --unc: #ffca16; --unc-bg: rgba(255,184,41,.15); --unt: #9a9a9a; --unt-bg: rgba(255,255,255,.07);
+  --diff-add: rgba(46,160,67,.15); --diff-del: rgba(248,81,73,.15);
+  --font-sans: "Geist", "Inter", ui-sans-serif, system-ui, sans-serif; --font-mono: "Geist Mono", ui-monospace, Menlo, monospace;
+  --r-sm: 6px; --r-md: 10px; --r-lg: 16px; --r-pill: 9999px; --fast: 120ms; --base: 180ms; --ease-out: cubic-bezier(.16,1,.3,1);
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--bg-canvas); color: var(--text-primary); font: 400 14px/1.55 var(--font-sans); -webkit-font-smoothing: antialiased; font-feature-settings: "ss01" 1; }
+:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+a { color: var(--iris-text); text-decoration: none; } a:hover { text-decoration: underline; }
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.muted { color: var(--text-tertiary); } .sec { color: var(--text-secondary); }
+
+.shell { display: grid; grid-template-columns: 232px 1fr; min-height: 100%; }
+.side { background: var(--bg-surface-1); border-right: 1px solid var(--border-subtle); padding: 20px 12px; display: flex; flex-direction: column; gap: 24px; position: sticky; top: 0; height: 100vh; }
+.brand { display: flex; align-items: center; gap: 10px; padding: 0 8px; font-size: 18px; letter-spacing: -.36px; color: var(--text-display); }
+.nav { display: grid; gap: 2px; }
+.nav a { display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 10px; border-radius: var(--r-sm); color: var(--text-secondary); font-weight: 500; font-size: 13px; text-decoration: none; position: relative; }
+.nav a:hover { background: var(--bg-hover); color: var(--text-primary); }
+.nav a[aria-current="page"] { background: var(--bg-surface-3); color: var(--text-display); }
+.nav a[aria-current="page"]::before { content: ""; position: absolute; left: -12px; top: 8px; bottom: 8px; width: 2px; border-radius: 2px; background: var(--iris); }
+.nav svg { width: 16px; height: 16px; }
+.side .foot { margin-top: auto; padding: 0 8px; font-size: 12px; color: var(--text-tertiary); display: grid; gap: 4px; }
+main { min-width: 0; }
+header.top { height: 56px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 32px; border-bottom: 1px solid var(--border-subtle); position: sticky; top: 0; background: rgba(0,0,0,.85); backdrop-filter: blur(8px); z-index: 5; }
+.crumb { color: var(--text-tertiary); font-size: 13px; } .crumb b { color: var(--text-primary); font-weight: 500; }
+.envs { display: flex; gap: 8px; flex-wrap: wrap; }
+.env { display: inline-flex; align-items: center; gap: 8px; height: 26px; padding: 0 12px 0 10px; border-radius: var(--r-pill); border: 1px solid var(--border-default); font: 400 12px/1 var(--font-mono); color: var(--text-secondary); white-space: nowrap; }
+.env i { width: 8px; height: 8px; border-radius: 50%; background: var(--text-tertiary); }
+.env.target i { background: var(--chg); } .env.candidate i { background: var(--iris); }
+.content { padding: 32px; display: grid; gap: 24px; max-width: 1280px; }
+h1 { font-size: 28px; line-height: 1.2; font-weight: 400; letter-spacing: -.84px; color: var(--text-display); margin: 0; }
+h2 { font-size: 16px; font-weight: 500; letter-spacing: -.16px; margin: 0; color: var(--text-primary); }
+.lede { color: var(--text-secondary); margin: 6px 0 0; max-width: 72ch; }
+.eyebrow { font: 600 12px/1.2 var(--font-sans); letter-spacing: .48px; text-transform: uppercase; color: var(--saffron); }
+
+.summary { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; }
+.big { font-size: 48px; line-height: 1; letter-spacing: -1.92px; color: var(--text-display); font-variant-numeric: tabular-nums; }
+.chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.chip { display: inline-flex; align-items: center; gap: 8px; height: 28px; padding: 0 12px; border-radius: var(--r-pill); border: 1px solid var(--border-default); color: var(--text-secondary); font: 500 12px/1 var(--font-sans); background: transparent; cursor: pointer; }
+.chip b { color: var(--text-primary); font-weight: 500; font-variant-numeric: tabular-nums; }
+.chip[aria-pressed="true"] { background: var(--bg-surface-3); border-color: var(--border-strong); color: var(--text-primary); }
+
+.panel { background: var(--bg-surface-2); border: 1px solid var(--border-subtle); border-radius: var(--r-md); min-width: 0; }
+.panel > .head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--border-subtle); }
+.panel > .body { padding: 16px; }
+.tbl-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { text-align: left; font: 500 12px/1.35 var(--font-sans); letter-spacing: .36px; text-transform: uppercase; color: var(--text-tertiary); padding: 0 12px; height: 36px; background: var(--bg-surface-1); border-bottom: 1px solid var(--border-default); white-space: nowrap; }
+td { padding: 8px 12px; height: 40px; border-bottom: 1px solid var(--border-subtle); vertical-align: middle; }
+tr:last-child td { border-bottom: 0; }
+tbody tr.sel { cursor: pointer; transition: background var(--fast) ease; }
+tbody tr.sel:hover { background: var(--bg-hover); }
+tbody tr[aria-selected="true"] { background: var(--bg-selected); }
+.id { font: 400 12px/1.4 var(--font-mono); color: var(--text-secondary); white-space: nowrap; }
+
+.badge { display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 8px 0 6px; border-radius: var(--r-sm); font: 500 12px/1 var(--font-sans); white-space: nowrap; }
+.badge svg { width: 14px; height: 14px; }
+.b-preserved, .b-satisfied, .b-passed, .b-verified_candidate, .b-verified { color: var(--ok); background: var(--ok-bg); }
+.b-missing, .b-not_satisfied, .b-unresolved, .b-rejected_protected, .b-rejected_paths, .b-gate_failed, .b-reverify_failed { color: var(--miss); background: var(--miss-bg); }
+.b-intentional_change { color: var(--chg); background: var(--chg-bg); }
+.b-uncertain, .b-unverified, .b-infra_error, .b-did_not_pass, .b-agent_unavailable, .b-no_patch, .b-cancelled, .b-inconclusive { color: var(--unc); background: var(--unc-bg); }
+.b-frozen, .b-established { color: var(--iris-text); background: var(--bg-selected); }
+.b-untested, .b-candidate, .b-source-observed, .b-queued, .b-running, .b-executing, .b-verifying, .b-patching, .b-retrying, .b-building { color: var(--unt); background: var(--unt-bg); }
+
+.verdict { display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px; border-radius: var(--r-md); font-size: 14px; }
+.verdict.missing { background: var(--miss-bg); } .verdict.preserved { background: var(--ok-bg); } .verdict.other { background: var(--unc-bg); }
+.verdict svg { width: 18px; height: 18px; flex: none; margin-top: 2px; }
+.compare { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
+.side-card { background: var(--bg-surface-2); border: 1px solid var(--border-subtle); border-radius: var(--r-md); padding: 16px; display: grid; gap: 12px; min-width: 0; align-content: start; }
+.side-card .h { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+dl.kv { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0; font-size: 13px; }
+dl.kv dt { color: var(--text-tertiary); } dl.kv dd { margin: 0; font: 400 12px/1.5 var(--font-mono); overflow-wrap: anywhere; }
+blockquote.kane { margin: 0; padding: 10px 12px; border-radius: var(--r-sm); background: var(--bg-surface-3); color: var(--text-secondary); font-size: 13px; }
+blockquote.kane b { color: var(--text-tertiary); font-weight: 500; font-size: 12px; text-transform: uppercase; letter-spacing: .36px; display: block; margin-bottom: 2px; }
+
+.grid2 { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 1100px) { .grid2 { grid-template-columns: 1fr; } }
+.timeline { list-style: none; margin: 0; padding: 0; display: grid; max-height: 560px; overflow-y: auto; }
+.ev { display: grid; grid-template-columns: 20px 1fr auto; gap: 12px; position: relative; padding-bottom: 14px; animation: in var(--base) var(--ease-out); }
+@keyframes in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.ev::before { content: ""; position: absolute; left: 9px; top: 20px; bottom: 0; width: 1px; background: var(--border-default); }
+.ev:last-child::before { display: none; }
+.dot { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; background: var(--bg-surface-3); color: var(--text-tertiary); }
+.dot svg { width: 12px; height: 12px; }
+.ev.ok .dot { color: var(--ok); background: var(--ok-bg); } .ev.fail .dot { color: var(--miss); background: var(--miss-bg); } .ev.warn .dot { color: var(--unc); background: var(--unc-bg); }
+.ev.live .dot { background: var(--saffron); color: var(--on-saffron); animation: pulse 1.6s var(--ease-out) infinite; }
+@keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(255,184,41,.45); } 50% { box-shadow: 0 0 0 5px rgba(255,184,41,0); } }
+.ev .t { font-size: 13px; } .ev .m { font: 400 12px/1.5 var(--font-mono); color: var(--text-tertiary); overflow-wrap: anywhere; } .ev .tm { font: 400 12px/20px var(--font-mono); color: var(--text-tertiary); }
+
+.diff { border: 1px solid var(--border-subtle); border-radius: var(--r-md); overflow: hidden; background: var(--bg-surface-1); }
+.diff .file { padding: 8px 12px; border-bottom: 1px solid var(--border-subtle); font: 400 12px/1.5 var(--font-mono); color: var(--text-secondary); background: var(--bg-surface-2); }
+.diff pre { margin: 0; overflow-x: auto; font: 400 12.5px/20px var(--font-mono); }
+.diff .l { display: block; padding: 0 12px; white-space: pre; }
+.diff .add { background: var(--diff-add); } .diff .del { background: var(--diff-del); } .diff .hunk { color: var(--iris-text); background: var(--bg-surface-2); }
+.gate { display: flex; gap: 8px; flex-wrap: wrap; }
+pre.report { margin: 0; white-space: pre-wrap; font: 400 13px/1.6 var(--font-mono); color: var(--text-secondary); }
+.cmd { display: flex; align-items: center; gap: 8px; padding: 8px 8px 8px 12px; border-radius: var(--r-sm); background: var(--bg-surface-3); font: 400 12.5px/1.4 var(--font-mono); color: var(--text-primary); }
+.cmd code { flex: 1; overflow-x: auto; white-space: nowrap; }
+.btn { display: inline-flex; align-items: center; height: 28px; padding: 0 10px; border-radius: var(--r-sm); border: 1px solid var(--border-strong); background: transparent; color: var(--text-primary); font: 500 12px/1 var(--font-sans); cursor: pointer; }
+.btn:hover { background: var(--bg-hover); }
+.empty { padding: 40px 16px; text-align: center; color: var(--text-tertiary); }
+.empty h3 { font-size: 20px; font-weight: 400; letter-spacing: -.4px; color: var(--text-primary); margin: 0 0 6px; }
+@media (max-width: 760px) { .shell { grid-template-columns: 1fr; } .side { position: static; height: auto; flex-direction: row; align-items: center; } .side .foot { display: none; } .nav { grid-auto-flow: column; } header.top, .content { padding-left: 16px; padding-right: 16px; } }
+@media (prefers-reduced-motion: reduce) { *, *::before { animation: none !important; transition-duration: 0ms !important; } }
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="side" aria-label="Navigation">
+    <div class="brand">
+      <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><rect x="1" y="3" width="7" height="16" rx="3" fill="#15846e"/><circle cx="11" cy="7" r="1" fill="#9a9a9a"/><circle cx="11" cy="11" r="1" fill="#9a9a9a"/><circle cx="11" cy="15" r="1" fill="#9a9a9a"/><rect x="14" y="3" width="7" height="16" rx="3" fill="#8052ff"/></svg>
+      Recast
+    </div>
+    <nav class="nav">
+      <a href="#parity" data-view="parity"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="2" y="2.5" width="12" height="11" rx="2"/><path d="M2 6.5h12M6 6.5v7"/></svg>Parity</a>
+      <a href="#repair" data-view="repair"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M5 4L2 8l3 4M11 4l3 4-3 4M9.5 3l-3 10"/></svg>Repair</a>
+      <a href="#report" data-view="report"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M4 1.5h5.5L12.5 4.5V14.5h-8.5z"/><path d="M6.5 8h4M6.5 11h4"/></svg>Report</a>
+    </nav>
+    <div class="foot"><span id="credits">Kane credits —</span><span>Read-only · local</span></div>
+  </aside>
+  <main>
+    <header class="top"><div class="crumb" id="crumb">Recast</div><div class="envs" id="envs"></div></header>
+    <div class="content" id="view" aria-live="polite"></div>
+  </main>
+</div>
+<script>
+'use strict';
+const $ = (s, r = document) => r.querySelector(s);
+function h(tag, attrs, ...kids) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (v == null || v === false) continue;
+    if (k === 'class') el.className = v; else if (k.startsWith('on')) el.addEventListener(k.slice(2), v); else el.setAttribute(k, v === true ? '' : v);
+  }
+  for (const k of kids.flat()) if (k != null && k !== false) el.append(k instanceof Node ? k : document.createTextNode(String(k)));
+  return el;
+}
+const svg = (inner, vb = '0 0 16 16') => { const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('viewBox', vb); s.setAttribute('fill', 'none'); s.setAttribute('stroke', 'currentColor'); s.setAttribute('stroke-width', '1.5'); s.setAttribute('stroke-linecap', 'round'); s.setAttribute('stroke-linejoin', 'round'); s.setAttribute('aria-hidden', 'true'); s.innerHTML = inner; return s; };
+const GLYPH = {
+  ok: '<circle cx="8" cy="8" r="6.25"/><path d="M5.4 8.2l1.8 1.8 3.4-3.7"/>',
+  miss: '<circle cx="8" cy="8" r="6.25"/><path d="M6 6l4 4M10 6l-4 4"/>',
+  chg: '<path d="M2.5 5.5h10L10 3M13.5 10.5h-10L6 13"/>',
+  unc: '<path d="M8 2.3l6.2 11H1.8z"/><path d="M8 6.6v3M8 11.4h.01"/>',
+  unt: '<circle cx="8" cy="8" r="6.25" stroke-dasharray="2.2 2.2"/>',
+};
+const LABEL = { frozen: 'Frozen', established: 'Established', 'source-observed': 'Source observed', candidate: 'Candidate', preserved: 'Preserved', missing: 'Missing', intentional_change: 'Intentional change', uncertain: 'Uncertain', untested: 'Untested', satisfied: 'Satisfied', not_satisfied: 'Not satisfied', unverified: 'Unverified', verified_candidate: 'Verified candidate', unresolved: 'Unresolved', cancelled: 'Cancelled', did_not_pass: 'Did not pass', passed: 'Passed', infra_error: 'Infrastructure error' };
+const glyphFor = (s) => ['frozen','established'].includes(s) ? 'ok' : ['preserved','satisfied','passed','verified_candidate','verified'].includes(s) ? 'ok' : ['missing','not_satisfied','unresolved','rejected_protected','rejected_paths','gate_failed','reverify_failed'].includes(s) ? 'miss' : s === 'intentional_change' ? 'chg' : ['untested','queued'].includes(s) ? 'unt' : 'unc';
+const badge = (s) => h('span', { class: `badge b-${s}` }, svg(GLYPH[glyphFor(s)]), LABEL[s] || s.replace(/_/g, ' '));
+const short = (x, n = 8) => (x ? String(x).slice(0, n) : '—');
+const time = (t) => (t ? new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '');
+const api = (p) => fetch(p, { cache: 'no-store' }).then((r) => { if (!r.ok) throw new Error(`${p} → ${r.status}`); return r.json(); });
+let streams = [];
+const closeStreams = () => { streams.forEach((s) => s.close()); streams = []; };
+
+function copyBtn(text) {
+  return h('button', { class: 'btn', type: 'button', onclick: async (e) => { try { await navigator.clipboard.writeText(text); e.target.textContent = 'Copied'; } catch { e.target.textContent = 'Select and copy'; } setTimeout(() => (e.target.textContent = 'Copy'), 1500); } }, 'Copy');
+}
+const cmd = (text) => h('div', { class: 'cmd' }, h('code', {}, text), copyBtn(text));
+
+// ---------- shell ----------
+async function frame(view) {
+  const o = await api('/api/overview');
+  $('#crumb').replaceChildren('Projects / ', h('b', {}, o.project));
+  $('#envs').replaceChildren(...[...o.environments].sort((a, b) => ['source','target','candidate'].indexOf(a.kind) - ['source','target','candidate'].indexOf(b.kind)).map((e) => h('span', { class: `env ${e.kind}`, title: e.url }, h('i'), `${e.kind} · ${e.name}${e.version ? ' · ' + e.version : ''}`)));
+  $('#credits').textContent = o.lastKnownBalance != null ? `Kane credits ${o.lastKnownBalance.toFixed(2)}` : 'Kane credits unknown';
+  document.querySelectorAll('.nav a').forEach((a) => a.setAttribute('aria-current', a.dataset.view === view ? 'page' : 'false'));
+  return o;
+}
+
+// ---------- parity ----------
+let filter = 'all';
+async function parityView(selected) {
+  const o = await frame('parity');
+  const r = o.report, s = r.scope;
+  const rows = r.rows.filter((x) => filter === 'all' || x.result === filter);
+  const sel = selected || (r.rows[0] && r.rows[0].requirement_id);
+  const counts = [['all', 'All', s.frozen], ['preserved', 'Preserved', s.verified - s.intentional], ['missing', 'Missing', s.missing], ['intentional_change', 'Intentional', s.intentional], ['uncertain', 'Uncertain', s.uncertain], ['untested', 'Untested', s.untested]];
+  const view = $('#view');
+  view.replaceChildren(
+    h('div', {}, h('div', { class: 'eyebrow' }, 'Scoped acceptance'), h('h1', {}, 'Parity'), h('p', { class: 'lede' }, 'Each row is a frozen requirement. Results come from Recast\'s oracle and classifier; Kane performs the steps and its own verdict is kept as evidence only.')),
+    h('div', { class: 'summary' }, h('span', { class: 'big' }, `${s.verified} of ${s.frozen}`), h('span', { class: 'sec' }, `frozen in-scope requirements verified${s.notFrozen ? ` · ${s.notFrozen} not yet frozen` : ''}`)),
+    h('div', { class: 'chips', role: 'toolbar', 'aria-label': 'Filter by result' }, counts.map(([k, l, n]) => h('button', { class: 'chip', type: 'button', 'aria-pressed': String(filter === k), onclick: () => { filter = k; parityView(sel); } }, l, h('b', {}, n)))),
+    rows.length ? h('div', { class: 'panel' }, h('div', { class: 'tbl-wrap' }, h('table', {},
+      h('thead', {}, h('tr', {}, ['Requirement', 'Objective', 'Target', 'Actual', 'Result', 'Evidence'].map((c) => h('th', { scope: 'col' }, c)))),
+      h('tbody', {}, rows.map((x) => h('tr', { class: 'sel', 'aria-selected': String(x.requirement_id === sel), tabindex: '0', onclick: () => parityView(x.requirement_id), onkeydown: (e) => { if (e.key === 'Enter') parityView(x.requirement_id); } },
+        h('td', { class: 'id' }, `${x.requirement_id} r${x.revision}`), h('td', { style: 'min-width:220px' }, x.objective), h('td', { class: 'id' }, x.target || '—'), h('td', { class: 'id', style: 'white-space:normal;min-width:180px;max-width:260px' }, x.actual || '—'), h('td', {}, badge(x.result)), h('td', { class: 'id' }, `${(x.source_run_ids.split(' ').filter(Boolean).length)} src · ${(x.target_run_ids.split(' ').filter(Boolean).length)} tgt`))))))) : h('div', { class: 'panel empty' }, h('h3', {}, 'No frozen requirements match'), 'Freeze a requirement with recast freeze, then run recast compare.'),
+    h('div', { id: 'detail' }),
+  );
+  if (sel) requirementDetail(sel);
+}
+
+async function requirementDetail(id) {
+  const d = await api(`/api/requirements/${encodeURIComponent(id)}`);
+  const latest = d.parity[0];
+  const src = d.runs.filter((r) => r.kind === 'baseline' && r.state === 'completed');
+  const tgtIds = new Set(latest?.decision?.targetRuns || []);
+  const tgt = d.runs.filter((r) => tgtIds.has(r.id));
+  const side = (title, kind, runs, envName) => {
+    const last = runs[runs.length - 1];
+    return h('section', { class: 'side-card', 'aria-label': title },
+      h('div', { class: 'h' }, h('span', { class: `env ${kind}` }, h('i'), `${kind} · ${envName || '—'}`), last ? badge(last.verdict || last.state) : badge('untested')),
+      last ? h('dl', { class: 'kv' },
+        ...Object.entries(last.observed || {}).flatMap(([k, v]) => [h('dt', {}, k), h('dd', {}, JSON.stringify(v))]),
+        h('dt', {}, 'runs'), h('dd', {}, runs.map((r) => `${short(r.id)} ${LABEL[r.verdict] || r.verdict || r.state}`).join(' · ')),
+        h('dt', {}, 'query'), h('dd', {}, last.fixture_ref || '—'),
+        ...(last.candidate_sha ? [h('dt', {}, 'candidate'), h('dd', {}, short(last.candidate_sha, 12))] : []),
+        h('dt', {}, 'credits'), h('dd', {}, runs.map((r) => r.credits != null ? r.credits.toFixed(2) : '?').join(' + ')),
+        h('dt', {}, 'evidence'), h('dd', {}, runs.map((r) => r.evidence_sha256 ? 'sha256:' + short(r.evidence_sha256, 12) : 'unavailable').join(' · ')),
+      ) : h('p', { class: 'muted' }, 'No qualifying run.'),
+      last?.kane_said ? h('blockquote', { class: 'kane' }, h('b', {}, `Kane said (${last.kane_outcome}${last.kane_category ? ', ' + last.kane_category.replace(/_/g, ' ') : ''})`), last.kane_said) : null,
+      last?.failed_step ? h('blockquote', { class: 'kane' }, h('b', {}, 'Failing step'), last.failed_step) : null,
+      runs.length ? h('button', { class: 'btn', type: 'button', onclick: () => openRun(last.id, title) }, 'Open run timeline') : null,
+    );
+  };
+  const vclass = latest?.status === 'missing' ? 'missing' : latest?.status === 'preserved' ? 'preserved' : 'other';
+  $('#detail').replaceChildren(h('div', { class: 'grid2' },
+    h('div', { style: 'display:grid;gap:12px;min-width:0' },
+      latest ? h('div', { class: `verdict ${vclass}` }, svg(GLYPH[glyphFor(latest.status)]), h('div', {}, h('strong', { style: 'font-weight:500' }, `${LABEL[latest.status]}. `), latest.explanation, h('div', { class: 'muted mono', style: 'margin-top:6px;font-size:12px' }, `${latest.reason_code} · ${time(latest.created_at)}`))) : null,
+      h('div', { class: 'compare' }, side('Source', 'source', src, src[0]?.environment), side('Target', tgt[0]?.env_kind || 'target', tgt, tgt[0]?.environment)),
+      h('div', { class: 'panel' }, h('div', { class: 'head' }, h('h2', {}, `${d.requirement.id} r${d.requirement.revision}`), badge(d.lifecycle)),
+        h('div', { class: 'body' }, h('dl', { class: 'kv' },
+          h('dt', {}, 'intent'), h('dd', { style: 'font-family:var(--font-sans);font-size:13px' }, d.requirement.action_intent),
+          h('dt', {}, 'assertions'), h('dd', {}, d.requirement.assertions.map((a) => `${a.path} ${a.operator} ${JSON.stringify(a.expected)}`).join(' ∧ ')),
+          h('dt', {}, 'oracle'), h('dd', {}, `${d.requirement.oracle}, settle ${d.requirement.settle_ms} ms`),
+          h('dt', {}, 'lifecycle'), h('dd', {}, `${d.lifecycle}${d.frozenAt ? ' · frozen ' + new Date(d.frozenAt).toLocaleString() : ''}`),
+          h('dt', {}, 'hash'), h('dd', {}, d.hash)),
+          h('div', { style: 'margin-top:12px;display:grid;gap:8px' }, latest?.status === 'missing' ? cmd(`pnpm recast repair --requirement ${d.requirement.id}`) : cmd(`pnpm recast compare --requirement ${d.requirement.id} --target trino-preview`)))),
+    ),
+    h('div', { class: 'panel' }, h('div', { class: 'head' }, h('h2', { id: 'tl-title' }, 'Run timeline'), h('span', { class: 'muted', style: 'font-size:12px' }, 'persisted events')), h('div', { class: 'body' }, h('ol', { class: 'timeline', id: 'timeline' }, h('li', { class: 'muted' }, 'Select a run.')))),
+  ));
+  const pick = tgt[tgt.length - 1] || src[src.length - 1];
+  if (pick) openRun(pick.id, tgt.length ? 'Target' : 'Source');
+}
+
+function eventRow(e, live) {
+  const p = e.payload || {};
+  const map = {
+    'run.started': ['Run started', `${p.kind} · ${p.environment} · trino ${p.fingerprint?.version ?? '?'}${p.candidateSha ? ' · candidate ' + short(p.candidateSha, 10) : ''}`, ''],
+    'fixture.ready': ['Fresh query running', p.queryId, 'ok'],
+    'kane.invoked': ['Kane started', p.startUrl, ''],
+    'kane.step': [p.remark || `step ${p.step}`, `step ${p.step} · ${p.status}`, p.status === 'failed' ? 'fail' : ''],
+    'kane.run_end': [`Kane finished: ${p.status}`, p.one_liner || p.reason || '', p.status === 'passed' ? 'ok' : 'warn'],
+    'oracle.observed': ['Oracle observed', Object.entries(p.values || {}).map(([k, v]) => `${k}=${v}`).join(' '), ''],
+    'fixture.cleanup': ['Leftover query cancelled via REST', `HTTP ${p.restStatus}`, ''],
+    'evidence.recorded': ['Evidence pack recorded', `sha256:${short(p.sha256, 16)} · ${p.entries} files`, 'ok'],
+    'run.evaluated': [`Recast verdict: ${LABEL[p.verdict] || p.verdict}`, (p.assertions || []).map((a) => `${a.path} ${a.outcome}`).join(' · '), p.verdict === 'satisfied' ? 'ok' : p.verdict === 'not_satisfied' ? 'fail' : 'warn'],
+    'run.failed': ['Run failed', p.error, 'fail'],
+    'task.created': ['Repair task created', `${p.requirement} r${p.revision}`, ''],
+    'attempt.started': [`Attempt ${p.attempt} started`, `${p.branch} @ ${short(p.baseSha, 10)}`, ''],
+    'agent.finished': [`Agent finished (${p.toolUses} tool calls)`, (p.summary || '').slice(0, 220), p.isError ? 'warn' : ''],
+    'agent.unavailable': ['Agent unavailable', p.reason, 'warn'],
+    'patch.collected': [`Patch: ${(p.changed || []).length} file(s)`, (p.changed || []).map((c) => c.split('/').pop()).join(', '), (p.disallowed || []).length ? 'fail' : ''],
+    'gate.finished': [`Build gate ${p.ok ? 'passed' : 'failed'}`, (p.steps || []).map((s) => `${s.name} ${s.ok ? 'ok' : 'FAIL'}`).join(' · '), p.ok ? 'ok' : 'fail'],
+    'candidate.committed': ['Candidate committed', `${short(p.candidateSha, 12)} on ${p.branch}`, 'ok'],
+    'reverify.classified': [`Re-verify: ${LABEL[p.status] || p.status}`, p.explanation, p.status === 'preserved' ? 'ok' : 'fail'],
+    'task.verified': ['Verified candidate', `${short(p.candidateSha, 12)} on ${p.branch}`, 'ok'],
+    'task.unresolved': ['Unresolved', `${p.attempts} attempts used`, 'fail'],
+    'task.cancelled': ['Task cancelled', p.reason, 'warn'],
+    'attempt.rejected': ['Attempt rejected', p.reason, 'fail'],
+  };
+  if (e.type === 'kane.unknown' || e.type === 'kane.stream_start' || e.type === 'kane.session') return null;
+  const [t, m, cls] = map[e.type] || [e.type, JSON.stringify(p).slice(0, 160), ''];
+  const icon = cls === 'ok' ? '<path d="M2.5 6.2l2.2 2.2 4.8-5"/>' : cls === 'fail' ? '<path d="M3.5 3.5l5 5M8.5 3.5l-5 5"/>' : cls === 'warn' ? '<path d="M6 3v4M6 9h.01"/>' : '<circle cx="6" cy="6" r="1.5" fill="currentColor"/>';
+  return h('li', { class: `ev ${live ? 'live' : cls}` }, h('span', { class: 'dot' }, svg(icon, '0 0 12 12')), h('div', {}, h('div', { class: 't' }, t), m ? h('div', { class: 'm' }, m) : null), h('span', { class: 'tm' }, time(e.at)));
+}
+
+function stream(url, list, onEnd) {
+  const es = new EventSource(url);
+  streams.push(es);
+  const add = (msg) => { const e = JSON.parse(msg.data); const row = eventRow(e, false); if (!row) return; list.querySelectorAll('.ev.live').forEach((x) => x.classList.remove('live')); row.classList.add('live'); list.append(row); list.scrollTop = list.scrollHeight - list.clientHeight < 80 ? list.scrollHeight : list.scrollTop; };
+  es.addEventListener('run', add); es.addEventListener('task', add);
+  es.addEventListener('end', () => { list.querySelectorAll('.ev.live').forEach((x) => x.classList.remove('live')); es.close(); onEnd && onEnd(); });
+}
+
+function openRun(id, label) {
+  closeStreams();
+  const list = $('#timeline');
+  if (!list) return;
+  $('#tl-title').textContent = `${label} run ${short(id)}`;
+  list.replaceChildren();
+  stream(`/api/runs/${id}/events`, list);
+}
+
+// ---------- repair ----------
+function renderDiff(patch) {
+  if (!patch) return h('p', { class: 'muted' }, 'No patch.');
+  const files = patch.split(/^diff --git /m).filter(Boolean);
+  return h('div', { style: 'display:grid;gap:12px' }, files.map((f) => {
+    const name = (f.match(/ b\/(\S+)/) || [])[1] || 'file';
+    const body = f.split('\n').filter((l) => !/^(index |--- |\+\+\+ |new file|deleted file|similarity|rename )/.test(l)).slice(1);
+    return h('div', { class: 'diff' }, h('div', { class: 'file' }, name.split('/').slice(-3).join('/')),
+      h('pre', {}, body.map((l) => h('span', { class: `l ${l.startsWith('+') ? 'add' : l.startsWith('-') ? 'del' : l.startsWith('@@') ? 'hunk' : ''}` }, l || ' '))));
+  }));
+}
+
+async function repairView(taskId) {
+  await frame('repair');
+  const tasks = await api('/api/tasks');
+  const view = $('#view');
+  const head = h('div', {}, h('div', { class: 'eyebrow' }, 'Migration'), h('h1', {}, 'Repair'), h('p', { class: 'lede' }, 'A confirmed gap becomes a task. The coding agent works in an isolated worktree of the target; Recast checks paths, the build and then re-runs the frozen requirement with Kane and the oracle.'));
+  if (!tasks.length) { view.replaceChildren(head, h('div', { class: 'panel empty' }, h('h3', {}, 'No repair tasks yet'), 'Run a comparison until a requirement is Missing, then start a repair.', h('div', { style: 'max-width:520px;margin:16px auto 0' }, cmd('pnpm recast repair --requirement REQ-QRY-CANCEL')))); return; }
+  const sel = taskId || tasks[0].id;
+  const t = await api(`/api/tasks/${sel}`);
+  closeStreams();
+  view.replaceChildren(head,
+    h('div', { class: 'panel' }, h('div', { class: 'tbl-wrap' }, h('table', {}, h('thead', {}, h('tr', {}, ['Task', 'Requirement', 'State', 'Attempts', 'Updated'].map((c) => h('th', { scope: 'col' }, c)))),
+      h('tbody', {}, tasks.map((x) => h('tr', { class: 'sel', tabindex: '0', 'aria-selected': String(x.id === sel), onclick: () => repairView(x.id) }, h('td', { class: 'id' }, short(x.id)), h('td', { class: 'id' }, `${x.requirement_id} r${x.revision}`), h('td', {}, badge(x.state)), h('td', { class: 'id' }, `${x.attempts} / ${x.max_attempts}`), h('td', { class: 'id' }, time(x.updated_at)))))))),
+    h('div', { class: 'grid2' },
+      h('div', { style: 'display:grid;gap:12px;min-width:0' }, t.attempts.length ? t.attempts.map((a) => h('div', { class: 'panel' },
+        h('div', { class: 'head' }, h('h2', {}, `Attempt ${a.attempt}`), badge(a.state)),
+        h('div', { class: 'body', style: 'display:grid;gap:12px' },
+          h('dl', { class: 'kv' }, h('dt', {}, 'agent'), h('dd', {}, a.agent || '—'), h('dt', {}, 'branch'), h('dd', {}, a.branch || '—'), h('dt', {}, 'candidate'), h('dd', {}, a.candidate_sha ? short(a.candidate_sha, 12) : '—'),
+            h('dt', {}, 'work'), h('dd', {}, `${a.tool_uses ?? 0} tool calls · ${a.denied_tools ?? 0} denied · ${a.agent_ms ? Math.round(a.agent_ms / 1000) + ' s' : '—'}${a.agent_cost_usd != null ? ' · $' + Number(a.agent_cost_usd).toFixed(2) : ''}`)),
+          a.gate ? h('div', { class: 'gate' }, a.gate.steps.map((s) => h('span', { class: `badge b-${s.ok ? 'passed' : 'gate_failed'}` }, svg(GLYPH[s.ok ? 'ok' : 'miss']), s.name))) : null,
+          a.decision ? h('div', { class: `verdict ${a.decision.status === 'preserved' ? 'preserved' : 'missing'}` }, svg(GLYPH[glyphFor(a.decision.status)]), h('div', {}, h('strong', { style: 'font-weight:500' }, `${LABEL[a.decision.status]}. `), a.decision.explanation)) : null,
+          a.agent_summary ? h('blockquote', { class: 'kane' }, h('b', {}, 'Agent said (not used to judge)'), a.agent_summary.slice(0, 600)) : null,
+          renderDiff(a.patch),
+        ))) : h('div', { class: 'panel empty' }, 'No attempts yet.')),
+      h('div', { class: 'panel' }, h('div', { class: 'head' }, h('h2', {}, 'Task timeline'), badge(t.state)), h('div', { class: 'body' }, h('ol', { class: 'timeline', id: 'ttl' }))),
+    ));
+  stream(`/api/tasks/${sel}/events`, $('#ttl'));
+}
+
+// ---------- report ----------
+async function reportView() {
+  await frame('report');
+  const md = await fetch('/api/report.md', { cache: 'no-store' }).then((r) => r.text());
+  $('#view').replaceChildren(h('div', {}, h('div', { class: 'eyebrow' }, 'Export'), h('h1', {}, 'Acceptance report'), h('p', { class: 'lede' }, 'Scoped evidence for the requirements listed, with real denominators. Also available as JSON and CSV from the CLI.')),
+    h('div', { style: 'display:grid;gap:8px;max-width:720px' }, cmd('pnpm recast report --format markdown --out report.md'), cmd('pnpm recast report --format csv --out report.csv')),
+    h('div', { class: 'panel' }, h('div', { class: 'body' }, h('pre', { class: 'report' }, md))));
+}
+
+async function route() {
+  closeStreams();
+  const [view, arg] = (location.hash.replace(/^#/, '') || 'parity').split('-');
+  try { if (view === 'repair') await repairView(arg); else if (view === 'report') await reportView(); else await parityView(); }
+  catch (e) { $('#view').replaceChildren(h('div', { class: 'panel empty' }, h('h3', {}, 'Could not load this view'), String(e.message || e), h('p', {}, 'Check that Postgres is running (docker-compose up -d) and the project exists (pnpm recast init).'))); }
+}
+addEventListener('hashchange', route);
+route();
+</script>
+</body>
+</html>
