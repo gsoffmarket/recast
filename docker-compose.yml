@@ -1,0 +1,26 @@
+# Local services for Recast: metadata/events in Postgres, job queue in Redis.
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: recast
+      POSTGRES_PASSWORD: ${RECAST_PG_PASSWORD:?set RECAST_PG_PASSWORD in .env}
+      POSTGRES_DB: recast
+    ports: ["127.0.0.1:5432:5432"]
+    volumes: [recast-pg:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U recast -d recast"]
+      interval: 2s
+      retries: 30
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    ports: ["127.0.0.1:6379:6379"]
+    volumes: [recast-redis:/data]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      retries: 30
+volumes:
+  recast-pg:
+  recast-redis:

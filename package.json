@@ -1,0 +1,26 @@
+{
+  "name": "recast",
+  "private": true,
+  "description": "Rebuild the software. Keep the behaviour.",
+  "license": "Apache-2.0",
+  "packageManager": "pnpm@9.15.9",
+  "engines": {
+    "node": ">=22"
+  },
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc -b --pretty",
+    "test": "vitest run",
+    "services:up": "docker-compose up -d",
+    "services:down": "docker-compose down",
+    "recast": "node --env-file=.env packages/cli/src/main.ts",
+    "worker": "node --env-file=.env packages/cli/src/main.ts worker"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4",
+    "@types/node": "^24.0.0",
+    "@types/yauzl": "^2.10.3"
+  }
+}

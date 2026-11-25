@@ -1,0 +1,23 @@
+{
+  "name": "trino-preview-parity",
+  "environments": [
+    {
+      "name": "trino-classic",
+      "kind": "source",
+      "baseUrl": "http://localhost:8080",
+      "startPath": "/ui/",
+      "hints": ["This is the Trino web UI.", "If a login page appears, enter the username {{username}}, leave the password empty and log in."]
+    },
+    {
+      "name": "trino-preview",
+      "kind": "target",
+      "baseUrl": "http://localhost:8080",
+      "startPath": "/ui/preview/",
+      "hints": ["This is the Trino web UI.", "If a login page appears, enter the username {{username}}, leave the password empty and log in."]
+    }
+  ],
+  "fixture": { "type": "trino-running-query", "baseUrl": "http://localhost:8080", "user": "recast-m0" },
+  "role": { "username": "recast-m0" },
+  "kane": { "maxSteps": 15, "timeoutSec": 480 },
+  "budget": { "minBalance": 150 }
+}
