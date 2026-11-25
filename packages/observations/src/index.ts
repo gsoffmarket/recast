@@ -148,3 +148,4 @@ export function kaneFinalStateObservations(finalState: Record<string, unknown> |
     .filter(([k, v]) => k !== 'url' && /^[a-z][a-z0-9_]{0,40}$/.test(k) && (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean'))
     .map(([k, v]) => ({ path: `ui.${k}`, value: typeof v === 'string' ? v.trim() : (v as number | boolean), adapter: 'kane-final-state', status: 'observed' as const, at }));
 }
+export * from './http.ts';

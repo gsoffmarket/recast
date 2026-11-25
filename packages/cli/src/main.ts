@@ -5,10 +5,10 @@ import { ZodError } from 'zod';
 import { newId } from '@recast/shared';
 import { parseRequirement, requirementHash, lifecycleAfterBaseline, COMPARATOR_VERSION } from '@recast/behaviour-spec';
 import { kaneVersion, kaneAuthenticated, kaneBalance, TESTED_KANE_VERSION } from '@recast/kane-adapter';
-import { trinoFingerprint } from '@recast/observations';
 import { evaluateRun, baselineStatus, classify, type RunEvaluation } from '@recast/parity';
 import * as db from '@recast/db';
-import { createQueue, createQueueEvents, enqueueAndWait, startWorker, executeRun, runRepair, verifyCandidateRef, type ProjectConfig, type RunJob, type RunSummary } from '@recast/runner';
+import { createQueue, createQueueEvents, enqueueAndWait, startWorker, executeRun, runRepair, verifyCandidateRef, makeAdapters, oracleMatches, parseProjectConfig, type ProjectConfig, type RunJob, type RunSummary } from '@recast/runner';
+import { scaffoldProject } from './scaffold.ts';
 import { fileURLToPath } from 'node:url';
 import { writeFile } from 'node:fs/promises';
 import { buildReport, toCsv, toMarkdown } from '@recast/reports';
@@ -26,7 +26,7 @@ class UsageError extends Error {}
 const program = new Command()
   .name('recast')
   .description('Rebuild the software. Keep the behaviour.')
-  .addOption(new Option('--project <name>', 'project name').default('trino-preview-parity'))
+  .addOption(new Option('--project <name>', 'project name (or set RECAST_PROJECT)').default(process.env.RECAST_PROJECT ?? 'trino-preview-parity'))
   .option('--json', 'machine-readable output')
   .option('--inline', 'run jobs in this process instead of the queue worker');
 
@@ -70,17 +70,29 @@ function evaluationsOf(rows: db.RunRow[]): RunEvaluation[] {
 
 // ---------- commands ----------
 
+program.command('new <dir>')
+  .description('Scaffold a project for your own app: config, an example requirement and next steps (no database needed)')
+  .option('--name <name>', 'project name (lowercase, dashes)')
+  .option('--legacy-url <url>', 'where the legacy UI runs', 'http://localhost:3000')
+  .option('--new-url <url>', 'where the new UI runs', 'http://localhost:3001')
+  .option('--api-url <url>', 'where the app API runs (fixture and oracle calls)')
+  .option('--force', 'overwrite existing files')
+  .action(async (dir: string, o: { name?: string; legacyUrl: string; newUrl: string; apiUrl?: string; force?: boolean }) => {
+    const written = await scaffoldProject(dir, { name: o.name, legacyUrl: o.legacyUrl, newUrl: o.newUrl, apiUrl: o.apiUrl, force: !!o.force }).catch((e) => { throw new UsageError((e as Error).message); });
+    out(`Created ${written.length} files in ${dir}:\n${written.map((f) => `  ${f}`).join('\n')}\nNext: edit the fixture and oracle in ${dir}/recast.config.json, then read ${dir}/NEXT_STEPS.md.`, { files: written });
+  });
+
 program.command('init')
   .description('Create or update a project from a config file, migrate the database and fingerprint environments')
   .requiredOption('--config <file>', 'project config JSON')
   .action(async (o: { config: string }) => {
-    const cfg = JSON.parse(await readFile(o.config, 'utf8')) as ProjectConfig;
-    if (!cfg.name || !Array.isArray(cfg.environments) || !cfg.environments.some((e) => e.kind === 'source')) throw new UsageError('config needs a name and at least one source environment');
+    const cfg = parseProjectConfig(JSON.parse(await readFile(o.config, 'utf8'))) as ProjectConfig;
+    const adapters = makeAdapters(parseProjectConfig(cfg));
     await withDb(async (sql) => {
       const applied = await db.migrate(sql);
       const project = await db.upsertProject(sql, cfg.name, cfg);
       for (const e of cfg.environments) {
-        const fingerprint = await trinoFingerprint(e.apiBaseUrl ?? e.baseUrl).catch((err) => ({ error: (err as Error).message }));
+        const fingerprint = await adapters.fingerprint(e.apiBaseUrl ?? e.baseUrl, new URL(e.startPath, e.baseUrl).toString()).catch((err) => ({ error: (err as Error).message }));
         await db.upsertEnvironment(sql, { project_id: project.id, kind: e.kind, name: e.name, base_url: e.baseUrl, start_path: e.startPath, fingerprint });
       }
       out(`Project ${cfg.name} ready (${cfg.environments.length} environments)${applied.length ? `; applied ${applied.join(', ')}` : ''}.`, { project: project.id, applied });
@@ -106,9 +118,17 @@ program.command('doctor')
       if (bal === null) add('kane.credits', 'inconclusive', 'balance unavailable');
       else add('kane.credits', !cfg || bal >= cfg.budget.minBalance ? 'pass' : 'fail', `${bal} credits${cfg ? ` (floor ${cfg.budget.minBalance})` : ''}`);
       if (!cfg) add('project', 'fail', `no project ${opts().project}`, 'recast init --config evaluation/trino/recast.config.json');
-      for (const e of cfg?.environments ?? []) {
-        try { const f = await trinoFingerprint(e.apiBaseUrl ?? e.baseUrl); add(`env.${e.name}`, f.starting === false ? 'pass' : 'inconclusive', `${e.kind} ${e.baseUrl}${e.startPath} trino ${String(f.version)}`); }
-        catch (err) { add(`env.${e.name}`, 'fail', (err as Error).message, 'start the Trino container'); }
+      let adapters: ReturnType<typeof makeAdapters> | null = null;
+      if (cfg) { try { adapters = makeAdapters(parseProjectConfig(cfg)); add('config', 'pass', `fixture ${adapters.fixtureIdentity}, oracle ${adapters.oracleName}`); } catch (e) { add('config', 'fail', (e as Error).message.slice(0, 300), 'fix the config, then recast init --config <file>'); } }
+      for (const e of adapters ? cfg?.environments ?? [] : []) {
+        const ui = new URL(e.startPath, e.baseUrl).toString();
+        try {
+          const uiOk = await fetch(ui).then((r) => r.status < 500).catch(() => false);
+          const f = await adapters!.fingerprint(e.apiBaseUrl ?? e.baseUrl, ui);
+          const version = f.version ?? f.status ?? '';
+          if (!uiOk && e.kind === 'candidate') add(`env.${e.name}`, 'inconclusive', `candidate ${ui} not running (recast repair starts it)`);
+          else add(`env.${e.name}`, uiOk && adapters!.ready(f) ? 'pass' : uiOk ? 'inconclusive' : 'fail', `${e.kind} ${ui}${version !== '' ? ` (${String(version)})` : ''}`, uiOk ? undefined : `start the app so ${ui} responds`);
+        } catch (err) { add(`env.${e.name}`, 'fail', (err as Error).message, `start the app behind ${e.apiBaseUrl ?? e.baseUrl}`); }
       }
     });
     if (opts().json) console.log(JSON.stringify({ at: new Date().toISOString(), checks }, null, 2));
@@ -123,7 +143,10 @@ reqs.command('add <file>')
   .action(async (file: string) => {
     const req = parseRequirement(JSON.parse(await readFile(file, 'utf8')));
     await withDb(async (sql) => {
-      const { project } = await requireProject(sql);
+      const { project, cfg } = await requireProject(sql);
+      const a = makeAdapters(parseProjectConfig(cfg));
+      if (req.fixture !== a.fixtureIdentity) throw new UsageError(`${req.id} uses fixture "${req.fixture}", but project ${project.name} provides "${a.fixtureIdentity}". Set "fixture" to "${a.fixtureIdentity}".`);
+      if (!oracleMatches(req.oracle, a.oracleName)) throw new UsageError(`${req.id} uses oracle "${req.oracle}", but project ${project.name} provides "${a.oracleName}". Set "oracle" to "${a.oracleName}".`);
       const fixtureIdentity = req.fixture;
       const hash = requirementHash(req, fixtureIdentity);
       const current = await db.getRevision(sql, project.id, req.id);
