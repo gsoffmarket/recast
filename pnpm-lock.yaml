@@ -159,6 +159,9 @@ importers:
       '@recast/db':
         specifier: workspace:*
         version: link:../db
+      '@recast/kane-adapter':
+        specifier: workspace:*
+        version: link:../kane-adapter
       '@recast/reports':
         specifier: workspace:*
         version: link:../reports

@@ -3,8 +3,9 @@ import { readFile, writeFile, mkdir, rm } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import * as db from '@recast/db';
-import { buildReport, toMarkdown } from '@recast/reports';
+import { buildReport, toMarkdown, toCsv } from '@recast/reports';
 import { redact } from '@recast/shared';
+import { readEvidenceSteps, readEvidenceScreenshot, extractNetworkEffects } from '@recast/kane-adapter';
 
 /**
  * Read-only local workspace UI. Binds to 127.0.0.1 only; no endpoint mutates state or runs commands
@@ -79,6 +80,59 @@ async function checks(sql: db.Sql, projectName: string) {
                     FROM candidate_checks WHERE project_id = ${project.id} ORDER BY created_at DESC`;
 }
 
+// ---------- requirement story: everything about one requirement, in order ----------
+
+async function runEvidence(sql: db.Sql, runId: string | undefined) {
+  if (!runId) return null;
+  const [r] = await sql<any[]>`SELECT r.id, r.kind, r.state, r.kane_outcome, r.fixture_ref, r.candidate_sha, r.evidence_path, r.evidence_sha256, r.evaluation->>'verdict' AS verdict,
+                                      r.credits_balance_before - r.credits_balance_after AS credits, r.created_at, e.name AS environment, e.kind AS env_kind,
+                                      (SELECT jsonb_object_agg(path, value) FROM observations o WHERE o.run_id = r.id) AS observed
+                               FROM runs r JOIN environments e ON e.id = r.environment_id WHERE r.id = ${runId}`;
+  if (!r) return null;
+  const steps = r.evidence_path ? await readEvidenceSteps(r.evidence_path).catch(() => []) : [];
+  const network = r.evidence_path && r.fixture_ref ? await extractNetworkEffects(r.evidence_path, { query_id: r.fixture_ref }).catch(() => []) : [];
+  const runEnd = (await sql<any[]>`SELECT payload FROM run_events WHERE run_id = ${runId} AND type = 'kane.run_end' ORDER BY seq DESC LIMIT 1`)[0]?.payload;
+  return {
+    id: r.id, kind: r.kind, state: r.state, environment: r.environment, envKind: r.env_kind, candidateSha: r.candidate_sha, verdict: r.verdict, kaneOutcome: r.kane_outcome,
+    observed: r.observed ?? {}, credits: r.credits === null ? null : Number(r.credits), at: r.created_at, evidenceSha: r.evidence_sha256, queryId: r.fixture_ref,
+    kaneSaid: runEnd ? { status: runEnd.status, oneLiner: runEnd.one_liner ?? runEnd.reason ?? null, category: runEnd.verdict?.category ?? null } : null,
+    steps: steps.map((s) => ({ dir: s.dir, ordinal: s.ordinal, kind: s.kind, status: s.status, summary: s.summary.split(r.fixture_ref ?? '\u0000').join('{query_id}'), shot: s.hasScreenshot })),
+    network,
+  };
+}
+
+async function requirementStory(sql: db.Sql, projectName: string, reqId: string) {
+  const base = await requirementDetail(sql, projectName, reqId);
+  if (!base) return null;
+  const project = (await db.getProject(sql, projectName))!;
+  const [rev] = await sql<any[]>`SELECT created_at, frozen_at, revision, lifecycle FROM requirement_revisions WHERE project_id = ${project.id} AND requirement_id = ${reqId} ORDER BY revision DESC LIMIT 1`;
+  const discovered = await sql<any[]>`SELECT i.title, i.key, i.detail, d.exploration_id, d.imported_at FROM discovery_items i JOIN discoveries d ON d.id = i.first_discovery
+                                      WHERE i.project_id = ${project.id} AND i.kind = 'candidate' AND i.linked_requirement = ${reqId}`;
+  const tasksFor = await sql<any[]>`SELECT t.id, t.state, t.created_at, t.updated_at, t.max_attempts FROM migration_tasks t WHERE t.project_id = ${project.id} AND t.requirement_id = ${reqId} ORDER BY t.created_at`;
+  const attempts = tasksFor.length ? await sql<any[]>`SELECT task_id, attempt, state, agent, candidate_sha, changed_paths, gate, decision, agent_summary, patch, agent_ms, tool_uses, denied_tools, agent_cost_usd, created_at, finished_at
+                                                      FROM agent_attempts WHERE task_id = ANY(${tasksFor.map((t) => t.id)}) ORDER BY created_at` : [];
+  const checksFor = await sql<any[]>`SELECT label, ref, candidate_sha, expected, verdicts, decision->>'status' AS status, decision->'regression' AS regression, as_expected, run_ids, created_at
+                                     FROM candidate_checks WHERE project_id = ${project.id} AND requirement_id = ${reqId} ORDER BY created_at`;
+  const runs = base.runs as any[];
+  const checkRunIds = new Set(checksFor.flatMap((c) => c.run_ids as string[]));
+  const source = [...runs].reverse().find((r) => r.kind === 'baseline' && r.state === 'completed');
+  const target = [...runs].reverse().find((r) => r.kind === 'compare' && r.state === 'completed');
+  const verifiedAttempt = [...attempts].reverse().find((a) => a.state === 'verified');
+  const candidateRunId = verifiedAttempt?.decision?.targetRuns?.at(-1) ?? [...runs].reverse().find((r) => r.kind === 'reverify' && r.state === 'completed' && r.verdict === 'satisfied' && !checkRunIds.has(r.id))?.id;
+  const credits = runs.reduce((a, r) => a + (r.credits ?? 0), 0);
+  return {
+    ...base, revisionInfo: rev ?? null, discovered, tasks: tasksFor.map((t) => ({ ...t, attempts: attempts.filter((a) => a.task_id === t.id) })), checks: checksFor,
+    compare: { source: await runEvidence(sql, source?.id), target: await runEvidence(sql, target?.id), candidate: await runEvidence(sql, candidateRunId) },
+    cost: { credits: Math.round(credits * 100) / 100, runs: runs.length, byKind: Object.fromEntries(['baseline', 'compare', 'reverify'].map((k) => [k, Math.round(runs.filter((r) => r.kind === k).reduce((a, r) => a + (r.credits ?? 0), 0) * 100) / 100])), agentMs: attempts.reduce((a, x) => a + (x.agent_ms ?? 0), 0) },
+  };
+}
+
+async function history(sql: db.Sql, projectName: string) {
+  const project = await db.getProject(sql, projectName);
+  if (!project) return [];
+  return sql<any[]>`SELECT requirement_id, revision, status, reason_code, created_at, decision->>'candidateSha' AS candidate_sha FROM parity_results WHERE project_id = ${project.id} ORDER BY created_at`;
+}
+
 /** SSE over a persisted event table. Resumes from Last-Event-ID; ends when the owner is terminal and drained. */
 async function streamEvents(req: IncomingMessage, res: ServerResponse, sql: db.Sql, kind: 'run' | 'task', id: string) {
   res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-store', connection: 'keep-alive' });
@@ -112,7 +166,22 @@ export function startWebServer(sql: db.Sql, projectName: string, port = 4173) {
       if (p === '/api/overview') { const o = await overview(sql, projectName); return o ? json(res, 200, o) : json(res, 404, { error: 'no project' }); }
       if (p === '/api/report.md') { const pr = await db.getProject(sql, projectName); res.writeHead(200, { 'content-type': 'text/markdown; charset=utf-8' }); return res.end(pr ? toMarkdown(await buildReport(sql, pr.id, pr.name)) : ''); }
       let m = p.match(/^\/api\/requirements\/(REQ-[A-Z0-9-]+)$/);
-      if (m) { const d = await requirementDetail(sql, projectName, m[1]!); return d ? json(res, 200, d) : json(res, 404, { error: 'unknown requirement' }); }
+      if (m) { const d = await requirementStory(sql, projectName, m[1]!); return d ? json(res, 200, d) : json(res, 404, { error: 'unknown requirement' }); }
+      if (p === '/api/history') return json(res, 200, await history(sql, projectName));
+      if (p === '/api/report.json' || p === '/api/report.csv') {
+        const pr = await db.getProject(sql, projectName);
+        const rep = pr ? await buildReport(sql, pr.id, pr.name) : null;
+        res.writeHead(200, { 'content-type': p.endsWith('.csv') ? 'text/csv; charset=utf-8' : 'application/json; charset=utf-8' });
+        return res.end(rep ? redact(p.endsWith('.csv') ? toCsv(rep) : JSON.stringify(rep, null, 2)) : '');
+      }
+      m = p.match(/^\/api\/runs\/([0-9a-f-]{36})\/shots\/([A-Za-z0-9-]{1,64})\.jpg$/);
+      if (m) {
+        const [r] = await sql<{ evidence_path: string | null }[]>`SELECT evidence_path FROM runs WHERE id = ${m[1]!}`;
+        const img = r?.evidence_path ? await readEvidenceScreenshot(r.evidence_path, m[2]!) : null;
+        if (!img) return json(res, 404, { error: 'no screenshot' });
+        res.writeHead(200, { 'content-type': 'image/jpeg', 'cache-control': 'public, max-age=86400' });
+        return res.end(img);
+      }
       if (p === '/api/tasks') return json(res, 200, await tasks(sql, projectName));
       if (p === '/api/discovery') return json(res, 200, await discovery(sql, projectName));
       if (p === '/api/checks') return json(res, 200, await checks(sql, projectName));
@@ -159,10 +228,22 @@ export async function exportStaticSite(sql: db.Sql, projectName: string, outDir:
     await put(`data/tasks/${t.id}.json`, await taskDetail(sql, t.id));
     await put(`data/tasks/${t.id}/events.json`, await sql`SELECT seq, type, payload, at FROM task_events WHERE task_id = ${t.id} ORDER BY seq`);
   }
+  const rep = await buildReport(sql, project.id, project.name);
+  await put('data/report.json', JSON.stringify(rep, null, 2));
+  await put('data/report.csv', toCsv(rep));
+  await put('data/history.json', await history(sql, projectName));
   for (const r of await db.listRevisions(sql, project.id)) {
-    const d = await requirementDetail(sql, projectName, r.requirement_id);
+    const d = await requirementStory(sql, projectName, r.requirement_id);
     await put(`data/requirements/${r.requirement_id}.json`, d);
     for (const run of d?.runs ?? []) await put(`data/runs/${run.id}/events.json`, await sql`SELECT seq, type, payload, at FROM run_events WHERE run_id = ${run.id} ORDER BY seq`);
+    for (const ev of [d?.compare.source, d?.compare.target, d?.compare.candidate]) {
+      if (!ev) continue;
+      const [row] = await sql<{ evidence_path: string | null }[]>`SELECT evidence_path FROM runs WHERE id = ${ev.id}`;
+      for (const st of ev.steps.filter((x) => x.shot)) {
+        const img = row?.evidence_path ? await readEvidenceScreenshot(row.evidence_path, st.dir) : null;
+        if (img) { const full = join(outDir, `data/runs/${ev.id}/shots/${st.dir}.jpg`); await mkdir(dirname(full), { recursive: true }); await writeFile(full, img); files++; }
+      }
+    }
   }
   const page = (await readFile(join(PUBLIC, 'index.html'), 'utf8')).replace('<script>\n\'use strict\';', `<script>window.RECAST_SNAPSHOT = ${JSON.stringify({ generatedAt, project: projectName })};</script>\n<script>\n'use strict';`);
   if (!page.includes('RECAST_SNAPSHOT')) throw new Error('could not inject snapshot marker into index.html');
