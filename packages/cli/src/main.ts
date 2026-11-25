@@ -8,11 +8,14 @@ import { kaneVersion, kaneAuthenticated, kaneBalance, TESTED_KANE_VERSION } from
 import { trinoFingerprint } from '@recast/observations';
 import { evaluateRun, baselineStatus, classify, type RunEvaluation } from '@recast/parity';
 import * as db from '@recast/db';
-import { createQueue, createQueueEvents, enqueueAndWait, startWorker, executeRun, runRepair, type ProjectConfig, type RunJob, type RunSummary } from '@recast/runner';
+import { createQueue, createQueueEvents, enqueueAndWait, startWorker, executeRun, runRepair, verifyCandidateRef, type ProjectConfig, type RunJob, type RunSummary } from '@recast/runner';
 import { fileURLToPath } from 'node:url';
 import { writeFile } from 'node:fs/promises';
 import { buildReport, toCsv, toMarkdown } from '@recast/reports';
-import { startWebServer } from '@recast/web';
+import { startWebServer, exportStaticSite } from '@recast/web';
+import { latestRunDir, readRunMap, suggestCandidates, type DiscoveryMap } from '@recast/discovery';
+import { spawn } from 'node:child_process';
+import { mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 /** Recast exit codes (not Kane's): 0 ok, 1 confirmed gap, 2 invalid config, 3 inconclusive/infra, 4 cancelled. */
@@ -225,6 +228,118 @@ program.command('repair')
     });
   });
 
+program.command('verify-candidate')
+  .description('Serve a git ref of the target as the candidate and re-run a frozen requirement against it (harness or control check; not counted as parity)')
+  .requiredOption('--requirement <id>')
+  .requiredOption('--ref <ref>', 'git ref in the target checkout, e.g. recast/harness-cancel or 481')
+  .requiredOption('--label <label>', 'short name, e.g. harness-operator or control-unpatched')
+  .addOption(new Option('--expect <result>').choices(['preserved', 'missing']).makeOptionMandatory())
+  .option('--runs <n>', 'runs', '2')
+  .option('--regression', 'also re-check previously preserved requirements on the candidate')
+  .action(async (o: { requirement: string; ref: string; label: string; expect: 'preserved' | 'missing'; runs: string; regression?: boolean }) => {
+    await withDb(async (sql) => {
+      const recastRoot = resolve(fileURLToPath(new URL('.', import.meta.url)), '../../..');
+      const r = await verifyCandidateRef(sql, opts().project, o.requirement, o.ref, { recastRoot, log: (l) => { if (!opts().json) console.log(l); }, runs: Number(o.runs), label: o.label, expected: o.expect, ...(o.regression ? { regression: true } : {}) });
+      out(`${r.label}: ${r.decision.status} — ${r.asExpected ? 'as expected' : 'NOT as expected'}`, r);
+      process.exitCode = r.asExpected ? EXIT.ok : EXIT.gap;
+    });
+  });
+
+const disc = program.command('discover').description('Kane Exploration: map the source app, import screens, flows and candidate requirements');
+
+async function importMap(sql: db.Sql, projectId: string, environment: string, map: DiscoveryMap) {
+  const candidates = suggestCandidates(map);
+  const totals = { screens: map.screens.length, flows: map.flows.length, findings: map.findings.length, candidates: candidates.length };
+  const [existing] = await sql<{ id: string }[]>`SELECT id FROM discoveries WHERE project_id = ${projectId} AND map_hash = ${map.hash}`;
+  const discId = existing?.id ?? newId();
+  if (!existing) await sql`INSERT INTO discoveries (id, project_id, environment, exploration_id, run_id, map_hash, totals) VALUES (${discId}, ${projectId}, ${environment}, ${map.explorationId}, ${map.runId}, ${map.hash}, ${sql.json(totals)})`;
+  const items: Array<{ kind: string; key: string; title: string; detail: unknown }> = [
+    ...map.screens.map((x) => ({ kind: 'screen', key: x.urlPattern.replace(/\?.*$/, '') || x.id, title: x.name, detail: { url: x.urlPattern, heading: x.heading, controls: x.controls.map((c) => ({ role: c.role, name: c.name, scope: c.scope, walked: c.walked })) } })),
+    ...map.flows.map((x) => ({ kind: 'flow', key: x.name.toLowerCase(), title: x.name, detail: { status: x.status, description: x.description, steps: x.steps } })),
+    ...map.findings.map((x) => ({ kind: 'finding', key: x.title.toLowerCase(), title: x.title, detail: { kind: x.kind, severity: x.severity } })),
+    ...candidates.map((x) => ({ kind: 'candidate', key: x.key, title: x.title, detail: x })),
+  ];
+  for (const it of items) {
+    await sql`INSERT INTO discovery_items (project_id, kind, key, title, detail, first_discovery, last_discovery)
+              VALUES (${projectId}, ${it.kind}, ${it.key}, ${it.title}, ${sql.json(it.detail as any)}, ${discId}, ${discId})
+              ON CONFLICT (project_id, kind, key) DO UPDATE SET title = EXCLUDED.title, detail = EXCLUDED.detail, last_discovery = EXCLUDED.last_discovery,
+                sightings = discovery_items.sightings + CASE WHEN discovery_items.last_discovery = EXCLUDED.last_discovery THEN 0 ELSE 1 END`;
+  }
+  return { discId, totals, candidates, reused: !!existing };
+}
+
+disc.command('import')
+  .description('Import the newest run of a Kane exploration from this machine')
+  .requiredOption('--exploration <id>', 'exploration id (kane-cli explore list --all)')
+  .option('--env <name>', 'source environment the exploration mapped')
+  .action(async (o: { exploration: string; env?: string }) => {
+    await withDb(async (sql) => {
+      const { project, cfg } = await requireProject(sql);
+      const env = o.env ?? cfg.environments.find((e) => e.kind === 'source')!.name;
+      const map = await readRunMap(await latestRunDir(o.exploration), o.exploration);
+      const r = await importMap(sql, project.id, env, map);
+      out([`Imported exploration ${o.exploration.slice(0, 8)} (${env})${r.reused ? ' — same map as before, sightings unchanged' : ''}: ${r.totals.screens} screens, ${r.totals.flows} flows, ${r.totals.findings} findings.`,
+        `${r.totals.candidates} candidate requirements (discovery is not proof; baseline them to establish):`, ...r.candidates.map((c) => `  · ${c.title} — ${c.why}`)].join('\n'), r);
+    });
+  });
+
+disc.command('run')
+  .description('Run a capped Kane Exploration of the source environment on this machine, then import it')
+  .option('--max-leases <n>', 'lease cap (credit budget)', '8')
+  .option('--prompt <text>', 'scope for the explorer', 'Map the screens and flows an operator uses.')
+  .option('--deny <names>', 'comma-separated controls never to press', 'Kill,Preempt,Log Out,Logout')
+  .action(async (o: { maxLeases: string; prompt: string; deny: string }) => {
+    await withDb(async (sql) => {
+      const { project, cfg } = await requireProject(sql);
+      const src = cfg.environments.find((e) => e.kind === 'source')!;
+      const url = new URL(src.startPath, src.baseUrl).toString();
+      const outDir = resolve(fileURLToPath(new URL('.', import.meta.url)), '../../../evaluation/trino/runs/explore');
+      await mkdir(outDir, { recursive: true });
+      const args = ['explore', 'run', '--url', url, '--local-orchestration', '--browser', 'local', '--headless', '--policy', 'mutating', '--allow-domain', new URL(src.baseUrl).hostname,
+        ...o.deny.split(',').flatMap((d) => ['--deny', d.trim()]), '--max-leases', o.maxLeases, '--max-parallel', '1',
+        '--deps', 'Logged in to the web UI as {{recast_user}}: type {{recast_user}} as the username, leave the password empty, press Log In',
+        '--variables', JSON.stringify({ recast_user: { value: cfg.role.username, secret: false } }), '--prompt', o.prompt, '--agent'];
+      if (!opts().json) console.log(`Exploring ${url} (max ${o.maxLeases} leases, denied: ${o.deny})…`);
+      const before = await kaneBalance();
+      const lines: string[] = [];
+      const code = await new Promise<number | null>((res, rej) => {
+        const c = spawn(process.env.KANE_BIN ?? 'kane-cli', args, { stdio: ['ignore', 'pipe', 'inherit'] });
+        let buf = '';
+        c.stdout.on('data', (d) => { buf += d; let i; while ((i = buf.indexOf('\n')) >= 0) { const l = buf.slice(0, i); buf = buf.slice(i + 1); lines.push(l); try { const e = JSON.parse(l); if (!opts().json && ['lease_end', 'explore_end'].includes(e.type)) console.log(`  ${e.type}${e.totals ? ' ' + JSON.stringify({ screens: e.totals.junctions, flows: e.totals.flows, findings: e.totals.findings }) : ''}`); } catch { /* not json */ } } });
+        c.on('error', rej); c.on('close', res);
+      });
+      const created = lines.map((l) => { try { return JSON.parse(l); } catch { return null; } }).find((e) => e?.exploration_id);
+      if (code !== 0 || !created) throw new Error(`kane-cli explore exited ${code}`);
+      const after = await kaneBalance();
+      const map = await readRunMap(await latestRunDir(created.exploration_id), created.exploration_id);
+      const r = await importMap(sql, project.id, src.name, map);
+      out(`Exploration ${created.exploration_id.slice(0, 8)}: ${r.totals.screens} screens, ${r.totals.flows} flows, ${r.totals.candidates} candidates; credits ${before !== null && after !== null ? (before - after).toFixed(2) : 'unknown'}.`, { ...r, credits: before !== null && after !== null ? before - after : null });
+    });
+  });
+
+disc.command('list').description('Discovered screens, flows and candidate requirements').action(async () => {
+  await withDb(async (sql) => {
+    const { project } = await requireProject(sql);
+    const rows = await sql<any[]>`SELECT kind, key, title, status, linked_requirement, sightings FROM discovery_items WHERE project_id = ${project.id} AND kind <> 'finding' ORDER BY kind, title`;
+    const [f] = await sql<{ n: number }[]>`SELECT count(*)::int AS n FROM discovery_items WHERE project_id = ${project.id} AND kind = 'finding'`;
+    out([...rows.map((r) => `${r.kind.padEnd(10)} ${r.status.padEnd(9)} ${(r.linked_requirement ?? '').padEnd(16)} ${r.title}`), `(${f?.n ?? 0} findings not shown)`].join('\n') || 'Nothing discovered yet.', rows);
+  });
+});
+
+disc.command('link')
+  .description('Link a discovered candidate to the requirement that now covers it (traceability)')
+  .requiredOption('--key <key>', 'candidate key from `recast discover list --json`')
+  .requiredOption('--requirement <id>')
+  .action(async (o: { key: string; requirement: string }) => {
+    await withDb(async (sql) => {
+      const { project } = await requireProject(sql);
+      if (!(await db.getRevision(sql, project.id, o.requirement))) throw new UsageError(`unknown requirement ${o.requirement}`);
+      const r = await sql`UPDATE discovery_items SET status = 'linked', linked_requirement = ${o.requirement} WHERE project_id = ${project.id} AND kind = 'candidate' AND key = ${o.key}`;
+      if (r.count === 0) throw new UsageError(`no candidate with key ${o.key}`);
+      out(`Linked ${o.key} → ${o.requirement}.`, { key: o.key, requirement: o.requirement });
+    });
+  });
+
 program.command('status')
   .description('Scoped acceptance matrix with real denominators')
   .action(async () => {
@@ -263,6 +378,16 @@ program.command('ui')
     const sql = db.connect();
     const { url } = startWebServer(sql, opts().project, Number(o.port));
     console.log(`Recast workspace: ${url}  (read-only; Ctrl-C to stop)`);
+  });
+
+program.command('export-site')
+  .description('Write the workspace UI with current results as a static, redacted snapshot (for hosting)')
+  .option('--out <dir>', 'output directory', 'site')
+  .action(async (o: { out: string }) => {
+    await withDb(async (sql) => {
+      const r = await exportStaticSite(sql, opts().project, resolve(o.out));
+      out(`Wrote ${r.files} files to ${o.out} (snapshot ${r.generatedAt}).`, r);
+    });
   });
 
 program.command('worker').description('Run the queue worker (one mutating run at a time)').action(async () => {

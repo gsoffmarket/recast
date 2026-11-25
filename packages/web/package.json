@@ -4,6 +4,13 @@
   "private": true,
   "type": "module",
   "license": "Apache-2.0",
-  "exports": { ".": "./src/index.ts" },
-  "dependencies": { "@recast/db": "workspace:*", "@recast/reports": "workspace:*", "@recast/shared": "workspace:*" }
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@recast/db": "workspace:*",
+    "@recast/reports": "workspace:*",
+    "@recast/shared": "workspace:*",
+    "@recast/kane-adapter": "workspace:*"
+  }
 }

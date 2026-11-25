@@ -27,3 +27,15 @@ describe('protected files', () => {
     expect(await readFile(join(root, 'specs/wip.json'), 'utf8')).toBe('uncommitted work');
   });
 });
+
+import { attributeToAgent } from '../src/repair.ts';
+describe('attributing protected-file changes', () => {
+  const root = '/repo';
+  it('blames the agent only for files its tool calls touched', () => {
+    const uses = [{ tool: 'Write', input: '{"file_path":"/repo/evaluation/trino/requirements/REQ-QRY-CANCEL.json"}' }];
+    expect(attributeToAgent(['evaluation/trino/requirements/REQ-QRY-CANCEL.json', 'packages/web/src/index.ts'], uses, root)).toEqual(['evaluation/trino/requirements/REQ-QRY-CANCEL.json']);
+  });
+  it('does not blame an agent that never referenced the changed file (operator edited concurrently)', () => {
+    expect(attributeToAgent(['packages/web/src/index.ts'], [{ tool: 'Edit', input: '{"file_path":"src/components/QueryDetails.tsx"}' }], root)).toEqual([]);
+  });
+});

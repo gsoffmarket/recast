@@ -110,7 +110,7 @@ export function buildRepairPrompt(t: RepairTask, feedback: string[], baselineTsc
     ``,
     `## Your job`,
     `Implement the missing behaviour in this app so a user can do the same thing from the preview UI. Follow the existing structure, components and code style. Change only files under src/. Do not edit package.json, lockfiles, configs or tests, and do not add dependencies.`,
-    `Before you finish, run: \`npx tsc -b\`, \`npm run lint\` and \`npm run prettier:check\` (fix formatting with \`npm run prettier:format\`).`,
+    `Before you finish, run each check as its own command from this directory, exactly as written, with no cd, pipes or redirection: \`npx tsc -b\`, \`npm run lint\`, \`npm run prettier:check\` (fix formatting with \`npm run prettier:format\`). Other shell commands are not available; use the file tools to read and search.`,
     baselineTscErrors.length ? `These type errors already exist upstream and are not yours; leave them: ${baselineTscErrors.join(', ')}.` : '',
     ...(feedback.length ? [``, `## Previous attempts did not pass`, ...feedback.map((f) => `- ${f}`)] : []),
     ``,
@@ -178,6 +178,11 @@ export async function snapshotProtected(root: string, paths: string[]): Promise<
     if (buf) snap.set(f, buf);
   }
   return snap;
+}
+
+/** Protected files the agent's own tool calls refer to (by repo-relative or absolute path). */
+export function attributeToAgent(files: string[], toolUses: Array<{ tool: string; input: string }>, recastRoot: string): string[] {
+  return files.filter((f) => toolUses.some((t) => t.input.includes(f) || t.input.includes(resolve(recastRoot, f))));
 }
 
 export function changedFiles(before: Map<string, Buffer>, after: Map<string, Buffer>): string[] {
@@ -280,7 +285,15 @@ export async function runRepair(sql: db.Sql, projectName: string, requirementId:
         return { taskId, state: 'cancelled', attempts: attempt, candidateSha: null, branch: ws.branch, decision: null };
       }
 
-      const tampered = changedFiles(before, after);
+      const changedProtected = changedFiles(before, after);
+      // Only changes the agent's own tool calls point at are the agent's. Anything else changed during the
+      // attempt (e.g. an operator editing Recast concurrently) is recorded, never reverted, never blamed.
+      const tampered = attributeToAgent(changedProtected, agent.toolUses, opts.recastRoot);
+      const external = changedProtected.filter((f) => !tampered.includes(f));
+      if (external.length) {
+        await tev('protected.changed_externally', { attempt, files: external, note: 'changed during the attempt but not by any agent tool call; not reverted' });
+        opts.log(`  note: ${external.length} protected file(s) changed during the attempt outside the agent (${external.join(', ')}); not attributed, not reverted`);
+      }
       if (tampered.length) {
         const evidence = await evidenceDiff(opts.recastRoot, before, tampered);
         await restoreFrom(opts.recastRoot, before, tampered);
@@ -353,9 +366,19 @@ export async function runRepair(sql: db.Sql, projectName: string, requirementId:
       opts.log(`  → ${decision.status.toUpperCase()} (${decision.reasonCode}): ${decision.explanation}`);
 
       if (decision.status === 'preserved') {
-        await db.setTaskState(sql, taskId, 'verified_candidate');
-        await tev('task.verified', { candidateSha, branch: ws.branch });
-        return { taskId, state: 'verified_candidate', attempts: attempt, candidateSha, branch: ws.branch, decision };
+        await db.setTaskState(sql, taskId, 'regression_checking');
+        const reg = await regressionCheck(sql, { projectName, projectId: project.id, cfg, rc, appPath: ws.appPath, candidateSha, excludeRequirement: req.id, log: opts.log });
+        await tev('regression.checked', { attempt, candidateSha, ok: reg.ok, checked: reg.checked });
+        await db.updateAttempt(sql, attemptId, { decision: { ...decision, regression: reg } });
+        if (reg.ok) {
+          await db.setTaskState(sql, taskId, 'verified_candidate');
+          await tev('task.verified', { candidateSha, branch: ws.branch, regression: reg.checked.map((c) => `${c.requirementId} ${c.status}`) });
+          return { taskId, state: 'verified_candidate', attempts: attempt, candidateSha, branch: ws.branch, decision };
+        }
+        await db.updateAttempt(sql, attemptId, { state: 'regression_failed' });
+        feedback.push(`Attempt ${attempt} fixed ${req.id} but broke previously working behaviour: ${reg.checked.filter((c) => c.status !== 'preserved').map((c) => `${c.requirementId} (${c.explanation})`).join('; ')}`);
+        ref = candidateSha;
+        continue;
       }
       const failedSteps: string[] = [];
       for (const r of results) for (const e of await db.runEventsOfType(sql, r.runId, 'kane.step')) if (e.payload.status === 'failed') failedSteps.push(e.payload.remark);
@@ -366,4 +389,89 @@ export async function runRepair(sql: db.Sql, projectName: string, requirementId:
   await db.setTaskState(sql, taskId, 'unresolved');
   await tev('task.unresolved', { attempts: maxAttempts });
   return { taskId, state: 'unresolved', attempts: maxAttempts, candidateSha: null, branch: null, decision: lastDecision };
+}
+
+// ---------- regression: previously preserved requirements must stay preserved on the candidate ----------
+
+export interface RegressionResult { ok: boolean; checked: Array<{ requirementId: string; revision: number; status: string; runId: string | null; explanation: string }> }
+
+export async function regressionCheck(sql: db.Sql, ctx: { projectName: string; projectId: string; cfg: ProjectConfig; rc: RepairConfig; appPath: string; candidateSha: string; excludeRequirement: string; log: (l: string) => void }): Promise<RegressionResult> {
+  const latest = await db.latestParity(sql, ctx.projectId);
+  const revs = await db.listRevisions(sql, ctx.projectId);
+  const targets = revs.filter((r) => r.frozen_at && r.requirement_id !== ctx.excludeRequirement && latest.some((p) => p.requirement_id === r.requirement_id && p.revision === r.revision && p.spec_hash === r.hash && p.status === 'preserved'));
+  if (!targets.length) { ctx.log('  regression: no previously preserved requirements to re-check'); return { ok: true, checked: [] }; }
+  const queue = createQueue();
+  const events = createQueueEvents();
+  const server = await startViteServer(ctx.appPath, ctx.rc.candidatePort, ctx.rc.readyPath);
+  const checked: RegressionResult['checked'] = [];
+  try {
+    for (const r of targets) {
+      const req = parseRequirement(r.body);
+      verifyFrozen({ requirement: req, hash: r.hash, fixtureIdentity: r.fixture_identity, frozenAt: r.frozen_at!.toISOString() });
+      const res = await enqueueAndWait(queue, events, { projectName: ctx.projectName, requirementId: req.id, revision: req.revision, environment: ctx.rc.candidateEnvironment, kind: 'reverify', idempotencyKey: `regression.${req.id}.r${req.revision}.${ctx.candidateSha.slice(0, 12)}.${newId().slice(0, 6)}`, candidateSha: ctx.candidateSha });
+      const row = await db.getRun(sql, res.runId);
+      const ev = row?.state === 'completed' && row.evaluation ? [row.evaluation as RunEvaluation] : [];
+      const d = classify({ requirement: req, baselineEstablished: true, sourceRuns: [], targetRuns: ev, minTargetRunsForGap: 1 });
+      checked.push({ requirementId: req.id, revision: req.revision, status: d.status, runId: res.runId, explanation: d.explanation });
+      ctx.log(`  regression ${req.id} r${req.revision}: ${d.status.toUpperCase()} (run ${res.runId.slice(0, 8)}${res.creditsSpent !== null ? `, credits ${res.creditsSpent}` : ''})`);
+    }
+  } finally { await server.stop(); await queue.close(); await events.close(); }
+  return { ok: checked.every((c) => c.status === 'preserved'), checked };
+}
+
+// ---------- candidate checks (prove the re-verify path, never counted as parity) ----------
+
+export interface CandidateCheckResult {
+  label: string; ref: string; candidateSha: string; expected: 'preserved' | 'missing';
+  verdicts: string[]; runIds: string[]; decision: ParityDecision; asExpected: boolean; gateOk: boolean; regression: RegressionResult | null;
+}
+
+/**
+ * Serve an existing git ref of the target as the candidate and re-run a frozen requirement against it.
+ * Used for operator-written harness patches and unpatched controls. Results go to candidate_checks.
+ */
+export async function verifyCandidateRef(sql: db.Sql, projectName: string, requirementId: string, ref: string, opts: { recastRoot: string; log: (l: string) => void; runs: number; label: string; expected: 'preserved' | 'missing'; regression?: boolean }): Promise<CandidateCheckResult> {
+  const project = await db.getProject(sql, projectName);
+  if (!project) throw new Error(`unknown project ${projectName}`);
+  const cfg = project.config as ProjectConfig & { repair?: RepairConfig };
+  const rc = cfg.repair;
+  if (!rc) throw new Error('project config has no "repair" section');
+  const rev = await db.getRevision(sql, project.id, requirementId);
+  if (!rev?.frozen_at) throw new Error(`${requirementId} is not frozen`);
+  const req = parseRequirement(rev.body);
+  verifyFrozen({ requirement: req, hash: rev.hash, fixtureIdentity: rev.fixture_identity, frozenAt: rev.frozen_at.toISOString() });
+
+  const target: TargetRepo = { ...rc.target, baseCheckout: resolve(opts.recastRoot, rc.target.baseCheckout), baseRef: ref };
+  const ws = await prepareWorkspace(target, resolve(opts.recastRoot, rc.attemptsDir), `check-${opts.label}-${newId().slice(0, 6)}`);
+  opts.log(`Candidate check "${opts.label}": ${ref} @ ${ws.baseSha.slice(0, 10)} (expect ${opts.expected})`);
+  const baseTsc = await exec('npx', ['tsc', '-b'], { cwd: resolve(target.baseCheckout, target.appDir), timeoutMs: 300_000 });
+  const gate = await runGate(ws.appPath, tscErrorKeys(baseTsc.stdout + baseTsc.stderr));
+  opts.log(`  gate: ${gate.steps.map((s) => `${s.name} ${s.ok ? 'ok' : 'FAIL'}`).join(' · ')}`);
+
+  const queue = createQueue();
+  const events = createQueueEvents();
+  const results: RunSummary[] = [];
+  const server = await startViteServer(ws.appPath, rc.candidatePort, rc.readyPath);
+  try {
+    for (let i = 1; i <= opts.runs; i++) {
+      const r = await enqueueAndWait(queue, events, { projectName, requirementId: req.id, revision: req.revision, environment: rc.candidateEnvironment, kind: 'reverify', idempotencyKey: `check.${opts.label}.${req.id}.r${req.revision}.${ws.baseSha.slice(0, 12)}.${newId().slice(0, 6)}.${i}`, candidateSha: ws.baseSha });
+      results.push(r);
+      opts.log(`  run ${i}/${opts.runs}: ${r.runId.slice(0, 8)} kane=${r.kaneOutcome} verdict=${r.verdict} ${Object.entries(r.observations).map(([k, v]) => `${k}=${v}`).join(' ')}${r.creditsSpent !== null ? ` credits=${r.creditsSpent}` : ''}`);
+    }
+  } finally { await server.stop(); await queue.close(); await events.close(); }
+
+  const srcEnv = cfg.environments.find((e) => e.kind === 'source')!;
+  const srcRow = (await db.getEnvironment(sql, project.id, srcEnv.name))!;
+  const sourceRuns = (await db.listRunsFor(sql, project.id, req.id, req.revision, 'baseline', srcRow.id)).filter((r) => r.state === 'completed' && r.evaluation).map((r) => r.evaluation as RunEvaluation);
+  const targetRuns: RunEvaluation[] = [];
+  for (const r of results) { const row = await db.getRun(sql, r.runId); if (row?.state === 'completed' && row.evaluation) targetRuns.push(row.evaluation as RunEvaluation); }
+  const decision = classify({ requirement: req, baselineEstablished: true, sourceRuns, targetRuns, minTargetRunsForGap: Math.min(2, opts.runs) });
+  const verdicts = results.map((r) => r.verdict ?? r.state);
+  let regression: RegressionResult | null = null;
+  if (opts.regression && decision.status === 'preserved') regression = await regressionCheck(sql, { projectName, projectId: project.id, cfg, rc, appPath: ws.appPath, candidateSha: ws.baseSha, excludeRequirement: req.id, log: opts.log });
+  const asExpected = opts.expected === 'preserved' ? decision.status === 'preserved' && (regression?.ok ?? true) : verdicts.every((v) => v === 'not_satisfied');
+  await sql`INSERT INTO candidate_checks (id, project_id, requirement_id, revision, spec_hash, label, ref, candidate_sha, expected, gate, run_ids, verdicts, decision, as_expected)
+            VALUES (${newId()}, ${project.id}, ${req.id}, ${req.revision}, ${rev.hash}, ${opts.label}, ${ref}, ${ws.baseSha}, ${opts.expected}, ${sql.json(gate as any)}, ${results.map((r) => r.runId)}, ${verdicts}, ${sql.json({ ...decision, regression } as any)}, ${asExpected})`;
+  opts.log(`  → ${decision.status.toUpperCase()} (${decision.reasonCode}); expected ${opts.expected}: ${asExpected ? 'AS EXPECTED' : 'NOT AS EXPECTED'}`);
+  return { label: opts.label, ref, candidateSha: ws.baseSha, expected: opts.expected, verdicts, runIds: results.map((r) => r.runId), decision, asExpected, gateOk: gate.ok, regression };
 }

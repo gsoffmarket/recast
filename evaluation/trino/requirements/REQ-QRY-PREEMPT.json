@@ -1,0 +1,18 @@
+{
+  "id": "REQ-QRY-PREEMPT",
+  "revision": 1,
+  "objective": "A user can preempt a running query from that query's page in the web UI",
+  "role": "web-ui-user",
+  "fixture": "trino-481-running-query-v1",
+  "inputs": {},
+  "action_intent": "Open the details page of the query with ID {{query_id}}, which is currently running, and preempt that query using only the web UI.",
+  "oracle": "trino-rest-v1",
+  "settle_ms": 10000,
+  "assertions": [
+    { "path": "query.state", "operator": "equals", "expected": "FAILED" },
+    { "path": "query.errorCode", "operator": "equals", "expected": "ADMINISTRATIVELY_PREEMPTED" }
+  ],
+  "provenance": "source-observed",
+  "scope": ["query-lifecycle", "discovered-by-kane-exploration"],
+  "source_evidence": ["kane-exploration:01a21498-9bd6-77b9-8bbd-2052f3311cca:control:localhost:8080/ui/query.html:preempt"]
+}
