@@ -213,10 +213,11 @@ program.command('repair')
   .description('Hand a confirmed MISSING requirement to the coding agent, then re-verify each candidate with Kane and the oracle')
   .requiredOption('--requirement <id>')
   .option('--max-attempts <n>', 'repair attempts (default from config)')
-  .action(async (o: { requirement: string; maxAttempts?: string }) => {
+  .addOption(new Option('--simulate-agent <kind>', 'adversarial evaluation: run a scripted misbehaving agent instead of the model').choices(['tamper-spec', 'tamper-db', 'edit-outside-src']))
+  .action(async (o: { requirement: string; maxAttempts?: string; simulateAgent?: 'tamper-spec' | 'tamper-db' | 'edit-outside-src' }) => {
     await withDb(async (sql) => {
       const recastRoot = resolve(fileURLToPath(new URL('.', import.meta.url)), '../../..');
-      const res = await runRepair(sql, opts().project, o.requirement, { recastRoot, log: (l) => { if (!opts().json) console.log(l); }, ...(o.maxAttempts ? { maxAttempts: Number(o.maxAttempts) } : {}) });
+      const res = await runRepair(sql, opts().project, o.requirement, { recastRoot, log: (l) => { if (!opts().json) console.log(l); }, ...(o.maxAttempts ? { maxAttempts: Number(o.maxAttempts) } : {}), ...(o.simulateAgent ? { simulateAgent: o.simulateAgent } : {}) });
       out(res.state === 'verified_candidate'
         ? `VERIFIED CANDIDATE after ${res.attempts} attempt(s): ${res.candidateSha} on ${res.branch}\n  ${res.decision?.explanation ?? ''}`
         : `UNRESOLVED after ${res.attempts} attempt(s).${res.decision ? `\n  Last result: ${res.decision.status} — ${res.decision.explanation}` : ''}`, res);

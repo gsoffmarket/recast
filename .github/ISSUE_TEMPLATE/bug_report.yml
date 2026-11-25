@@ -1,0 +1,25 @@
+name: Bug report
+description: Something in Recast behaves wrongly
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: Include the command you ran and its output.
+    validations: { required: true }
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations: { required: true }
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: Output of `pnpm recast doctor` (Kane CLI, target app version).
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Run or task IDs
+      description: From `recast status` or the workspace UI. Do not paste credentials or share links.

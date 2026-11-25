@@ -52,3 +52,18 @@ describe('classify (M0 shapes)', () => {
     expect(classify({ requirement: req, baselineEstablished: false, sourceRuns: [], targetRuns: [] }).status).toBe('untested');
   });
 });
+
+describe('equivalence control shape', () => {
+  const owner = parseRequirement({
+    id: 'REQ-QRY-OWNER', revision: 1, objective: 'See who submitted a running query', role: 'u', fixture: 'f', action_intent: 'Read the user of {{query_id}}',
+    oracle: 'x', settle_ms: 0, assertions: [{ path: 'ui.query_user', operator: 'equals', expected: 'recast-m0' }, { path: 'query.state', operator: 'equals', expected: 'RUNNING' }], provenance: 'source-observed',
+  });
+  const seen = [{ path: 'ui.query_user', value: 'recast-m0', status: 'observed' as const }, { path: 'query.state', value: 'RUNNING', status: 'observed' as const }];
+  it('passes when a different UI shows the same value', () => {
+    const src = [evaluateRun('s1', owner, seen, true), evaluateRun('s2', owner, seen, true)];
+    expect(classify({ requirement: owner, baselineEstablished: true, sourceRuns: src, targetRuns: [evaluateRun('t1', owner, seen, true)] }).status).toBe('preserved');
+  });
+  it('is unverified, not missing, when Kane stored no reading', () => {
+    expect(evaluateRun('t', owner, seen.slice(1), true).verdict).toBe('unverified');
+  });
+});

@@ -1,0 +1,18 @@
+{
+  "id": "REQ-QRY-OWNER",
+  "revision": 1,
+  "objective": "A user can see who submitted a running query on that query's page in the web UI",
+  "role": "web-ui-user",
+  "fixture": "trino-481-running-query-v1",
+  "inputs": {},
+  "action_intent": "Open the details page of the query with ID {{query_id}}, which is currently running. Read the name of the user who submitted that query as shown on its details page and store it as query_user. Do not cancel or change the query.",
+  "oracle": "trino-rest-v1+kane-final-state",
+  "settle_ms": 0,
+  "assertions": [
+    { "path": "ui.query_user", "operator": "equals", "expected": "recast-m0" },
+    { "path": "query.state", "operator": "equals", "expected": "RUNNING" }
+  ],
+  "provenance": "source-observed",
+  "scope": ["query-lifecycle", "equivalence-control"],
+  "source_evidence": []
+}
