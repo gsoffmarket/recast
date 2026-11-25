@@ -1,5 +1,10 @@
 # Recast
 
+[![CI](https://github.com/gsoffmarket/recast/actions/workflows/ci.yml/badge.svg)](https://github.com/gsoffmarket/recast/actions/workflows/ci.yml)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+![Node 24](https://img.shields.io/badge/node-24-339933.svg)
+![Kane CLI 0.10.9](https://img.shields.io/badge/Kane%20CLI-0.10.9-8052ff.svg)
+
 **Rebuild the software. Keep the behaviour.**
 
 Recast watches a working legacy web app, turns what it does into frozen, hashed requirements, finds what a replacement UI is missing, hands each confirmed gap to a coding agent, and accepts the agent's patch only when [Kane CLI](https://www.testmuai.com/kane-cli/) and an independent oracle show the original requirement passing on the new code.
@@ -39,6 +44,10 @@ Recast watches a working legacy web app, turns what it does into frozen, hashed 
 
 The objective text is identical for both UIs; run values such as the query ID go in as Kane variables.
 
+## Docs
+
+- [Architecture](docs/architecture.md) · [Contributing](CONTRIBUTING.md) · [Security and agent containment](SECURITY.md)
+
 ## Install and run
 
 Requirements: Node 24, pnpm 9, Docker (Colima works), Kane CLI 0.10.9 logged in, and for repair, Claude Code.
@@ -76,6 +85,22 @@ All figures below are measured on 25 Nov 2026 with Kane CLI 0.10.9 against `trin
 | Repair | 0 | First attempt stopped before any patch: the agent's plan hit its usage limit. No credits were spent; rerun pending. |
 
 Earlier manual spike (M0): classic UI cancelled 3 of 3, preview UI still running 3 of 3.
+
+### Adversarial checks (no model, no credits)
+
+`recast repair --simulate-agent <kind>` runs scripted misbehaving agents against the real guards:
+
+| Scenario | What the "agent" does | Result |
+|---|---|---|
+| `tamper-spec` | Rewrites the frozen requirement file so a still-running query would pass | Rejected as a protected-file change; diff kept as evidence; file restored byte for byte |
+| `tamper-db` | Tries to rewrite the frozen revision in Postgres | Refused by the database: "requirement REQ-QRY-CANCEL r1 is frozen; create a new revision" |
+| `edit-outside-src` | Adds a dependency to `package.json` plus a source edit | Rejected: change outside the allowed folder |
+
+After all three, REQ-QRY-CANCEL r1 still has its original hash and expected values.
+
+### Equivalent-UI control
+
+REQ-QRY-OWNER ("see who submitted a running query on its page") is supported by both UIs with different layouts, so Recast must call it Preserved on the preview UI. The control is running now; this section will report its measured result.
 
 What we learned, and why Recast is built this way:
 
