@@ -63,13 +63,14 @@ All results measured on 25 Nov 2026 with Kane CLI 0.10.9 against `trinodb/trino:
 |---|---|
 | **Discovery** | Kane Exploration mapped the classic UI: 5 screens, 4 verified flows, 19 findings, 5 candidate requirements, including the **Kill** and **Preempt** controls on the query page. |
 | **Real gap found** | REQ-QRY-CANCEL: established 2 of 2 on the classic UI (query `FAILED / ADMINISTRATIVELY_KILLED`), then **Missing** on the preview UI in 2 of 2 runs (query still `RUNNING`). |
+| **Second gap, found by Kane** | REQ-QRY-PREEMPT came from the Preempt control Kane Exploration discovered: established 2 of 2 (`ADMINISTRATIVELY_PREEMPTED`), **Missing** on the preview UI 2 of 2. |
+| **Gap fixed by an agent and proven** | Claude Code patched Trino's preview UI from evidence alone (3 files under `src/`: a Kill button and a `PUT` helper). Recast's build gate passed, Kane re-ran the frozen REQ-QRY-CANCEL on the patched UI and the query was killed **2 of 2**, and the regression check kept REQ-QRY-OWNER Preserved. Candidate `626ea9b`, awaiting review. |
 | **No false gap** | REQ-QRY-OWNER ("see who submitted a running query"), supported by both UIs with different layouts: established 2 of 2, **Preserved** on the preview UI. |
-| **Re-verify proven** | An operator-written fix served as the candidate passed the frozen REQ-QRY-CANCEL 2 of 2 (query killed through the new button). |
+| **Re-verify cannot be fooled** | An operator-written harness fix passed 2 of 2 with a clean regression check, and the unpatched code served the same way failed (query still `RUNNING`). |
 | **Guardrails** | Three scripted adversarial agents (rewrite the frozen spec, rewrite the frozen row in Postgres, edit outside the allowed folder) were all rejected before any re-verification; the spec stayed byte-identical. |
 | **Kane is not the judge** | In several runs Kane's own verdict was wrong: it called real gaps "agent missteps" and failed runs where the kill had happened. Recast classified every one correctly from the oracle. |
-| **Agent repair** | The live Claude Code repair of REQ-QRY-CANCEL is in progress; results will be added here. |
 
-Also included: a workspace UI (parity matrix, source vs target evidence, live run and task timelines, discovery, repair), an acceptance report with real denominators, per-run credit accounting from the Kane balance, 41 unit tests and CI.
+Also included: a workspace UI (requirement stories with a step-by-step legacy / new / fixed comparison, Kane screenshots, the network request each version sent, a "Why?" for every verdict, discovery inbox, cost and trend), an acceptance report with real denominators, per-run credit accounting from the Kane balance, 43 unit tests and CI.
 
 ## Reproduce it
 
