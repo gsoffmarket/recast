@@ -69,3 +69,7 @@ Thumbs.db
 !.vscode/extensions.json
 *.swp
 *~
+
+# Kane CLI step dumps written to the working directory during explore runs
+/run_summary.json
+/step_[0-9]*.json
