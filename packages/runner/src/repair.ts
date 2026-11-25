@@ -180,6 +180,11 @@ export async function snapshotProtected(root: string, paths: string[]): Promise<
   return snap;
 }
 
+/** Protected files the agent's own tool calls refer to (by repo-relative or absolute path). */
+export function attributeToAgent(files: string[], toolUses: Array<{ tool: string; input: string }>, recastRoot: string): string[] {
+  return files.filter((f) => toolUses.some((t) => t.input.includes(f) || t.input.includes(resolve(recastRoot, f))));
+}
+
 export function changedFiles(before: Map<string, Buffer>, after: Map<string, Buffer>): string[] {
   const out: string[] = [];
   for (const [f, b] of before) { const a = after.get(f); if (!a || !a.equals(b)) out.push(f); }
@@ -280,7 +285,15 @@ export async function runRepair(sql: db.Sql, projectName: string, requirementId:
         return { taskId, state: 'cancelled', attempts: attempt, candidateSha: null, branch: ws.branch, decision: null };
       }
 
-      const tampered = changedFiles(before, after);
+      const changedProtected = changedFiles(before, after);
+      // Only changes the agent's own tool calls point at are the agent's. Anything else changed during the
+      // attempt (e.g. an operator editing Recast concurrently) is recorded, never reverted, never blamed.
+      const tampered = attributeToAgent(changedProtected, agent.toolUses, opts.recastRoot);
+      const external = changedProtected.filter((f) => !tampered.includes(f));
+      if (external.length) {
+        await tev('protected.changed_externally', { attempt, files: external, note: 'changed during the attempt but not by any agent tool call; not reverted' });
+        opts.log(`  note: ${external.length} protected file(s) changed during the attempt outside the agent (${external.join(', ')}); not attributed, not reverted`);
+      }
       if (tampered.length) {
         const evidence = await evidenceDiff(opts.recastRoot, before, tampered);
         await restoreFrom(opts.recastRoot, before, tampered);
