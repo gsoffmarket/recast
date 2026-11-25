@@ -8,7 +8,7 @@ import { kaneVersion, kaneAuthenticated, kaneBalance, TESTED_KANE_VERSION } from
 import { trinoFingerprint } from '@recast/observations';
 import { evaluateRun, baselineStatus, classify, type RunEvaluation } from '@recast/parity';
 import * as db from '@recast/db';
-import { createQueue, createQueueEvents, enqueueAndWait, startWorker, executeRun, runRepair, type ProjectConfig, type RunJob, type RunSummary } from '@recast/runner';
+import { createQueue, createQueueEvents, enqueueAndWait, startWorker, executeRun, runRepair, verifyCandidateRef, type ProjectConfig, type RunJob, type RunSummary } from '@recast/runner';
 import { fileURLToPath } from 'node:url';
 import { writeFile } from 'node:fs/promises';
 import { buildReport, toCsv, toMarkdown } from '@recast/reports';
@@ -222,6 +222,23 @@ program.command('repair')
         ? `VERIFIED CANDIDATE after ${res.attempts} attempt(s): ${res.candidateSha} on ${res.branch}\n  ${res.decision?.explanation ?? ''}`
         : `UNRESOLVED after ${res.attempts} attempt(s).${res.decision ? `\n  Last result: ${res.decision.status} — ${res.decision.explanation}` : ''}`, res);
       process.exitCode = res.state === 'verified_candidate' ? EXIT.ok : EXIT.gap;
+    });
+  });
+
+program.command('verify-candidate')
+  .description('Serve a git ref of the target as the candidate and re-run a frozen requirement against it (harness or control check; not counted as parity)')
+  .requiredOption('--requirement <id>')
+  .requiredOption('--ref <ref>', 'git ref in the target checkout, e.g. recast/harness-cancel or 481')
+  .requiredOption('--label <label>', 'short name, e.g. harness-operator or control-unpatched')
+  .addOption(new Option('--expect <result>').choices(['preserved', 'missing']).makeOptionMandatory())
+  .option('--runs <n>', 'runs', '2')
+  .option('--regression', 'also re-check previously preserved requirements on the candidate')
+  .action(async (o: { requirement: string; ref: string; label: string; expect: 'preserved' | 'missing'; runs: string; regression?: boolean }) => {
+    await withDb(async (sql) => {
+      const recastRoot = resolve(fileURLToPath(new URL('.', import.meta.url)), '../../..');
+      const r = await verifyCandidateRef(sql, opts().project, o.requirement, o.ref, { recastRoot, log: (l) => { if (!opts().json) console.log(l); }, runs: Number(o.runs), label: o.label, expected: o.expect, ...(o.regression ? { regression: true } : {}) });
+      out(`${r.label}: ${r.decision.status} — ${r.asExpected ? 'as expected' : 'NOT as expected'}`, r);
+      process.exitCode = r.asExpected ? EXIT.ok : EXIT.gap;
     });
   });
 
