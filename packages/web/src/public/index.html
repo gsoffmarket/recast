@@ -8,6 +8,16 @@
 <meta property="og:title" content="Recast: rebuild the software, keep the behaviour">
 <meta property="og:description" content="Behaviour parity for UI migrations, proven with Kane CLI. Real case: Trino 481 classic UI vs preview UI.">
 <meta name="theme-color" content="#000000">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://recast-sooty.vercel.app/">
+<meta property="og:image" content="https://recast-sooty.vercel.app/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Recast: rebuild the software, keep the behaviour. 2 real gaps found, 1 fixed by an agent and verified, 0 false alarms.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Recast: rebuild the software, keep the behaviour">
+<meta name="twitter:description" content="Kane CLI finds what a UI rewrite lost. A coding agent fixes it. Kane proves it.">
+<meta name="twitter:image" content="https://recast-sooty.vercel.app/og.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 22'%3E%3Crect x='1' y='3' width='7' height='16' rx='3' fill='%2315846e'/%3E%3Crect x='14' y='3' width='7' height='16' rx='3' fill='%238052ff'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300..700&family=Geist+Mono:wght@400..600&display=swap">
@@ -139,11 +149,11 @@ pre.report { margin: 0; white-space: pre-wrap; font: 400 13px/1.6 var(--font-mon
 .bar nav a:hover { background: var(--bg-hover); color: var(--text-primary); }
 .bar nav a[aria-current="page"] { background: var(--bg-surface-3); color: var(--text-display); }
 .bar .spacer { flex: 1; }
-.bar .snap { font: 400 12px/1.3 var(--font-mono); color: var(--text-tertiary); white-space: nowrap; }
+.bar .snap { font: 400 12px/1.3 var(--font-mono); color: var(--text-tertiary); white-space: nowrap; cursor: help; border-bottom: 1px dotted var(--border-strong); }
 .menu { position: relative; }
 .menu > button { height: 32px; }
 .menu-list { position: absolute; right: 0; top: 38px; min-width: 200px; background: var(--bg-surface-3); border: 1px solid var(--border-default); border-radius: var(--r-md); box-shadow: 0 12px 32px rgba(0,0,0,.72); padding: 6px; display: grid; gap: 2px; z-index: 20; }
-.menu-list[hidden] { display: none; }
+.menu-list[hidden], .menu[hidden] { display: none; }
 .menu-list a { display: block; padding: 8px 10px; border-radius: var(--r-sm); color: var(--text-primary); font-size: 13px; text-decoration: none; }
 .menu-list a:hover { background: var(--bg-hover); }
 main.page { width: 100%; max-width: 1200px; margin: 0 auto; padding: 32px max(16px, env(safe-area-inset-right, 0px)) 64px max(16px, env(safe-area-inset-left, 0px)); display: grid; gap: 28px; }
@@ -247,6 +257,46 @@ details > summary::-webkit-details-marker { display: none; }
 }
 @media (max-width: 520px) { .bar { gap: 12px; } .brand span.word { display: none; } .req-card { grid-template-columns: 1fr; } }
 
+
+/* ---- landing v2 ---- */
+.hero { padding: 16px 0 0; gap: 40px; }
+.hero h1 { font-size: clamp(40px, 5.6vw, 80px); }
+.hero .lede { margin: 16px 0 22px; font-size: 18px; }
+.btn-ghost { display: inline-flex; align-items: center; height: 44px; padding: 0 12px; color: var(--text-secondary); font: 500 14px/1 var(--font-sans); text-decoration: none; }
+.btn-ghost:hover { color: var(--text-primary); text-decoration: none; }
+.cred { margin: 18px 0 0; font: 400 12.5px/1.5 var(--font-mono); color: var(--text-tertiary); }
+.proof { display: grid; gap: 10px; }
+.proof-frame { margin: 0; display: grid; gap: 6px; padding: 10px; border-radius: var(--r-md); background: var(--bg-surface-2); border: 1px solid var(--border-subtle); animation: rise 600ms var(--ease-out) both; animation-delay: calc(var(--i) * 260ms); }
+.proof-frame figcaption { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--text-secondary); }
+.proof-frame .dot { width: 8px; height: 8px; border-radius: 50%; }
+.proof-frame.ok .dot { background: var(--ok); } .proof-frame.fail .dot { background: var(--miss); }
+.proof-frame.fail { border-color: rgba(255,149,146,.3); }
+.proof-frame img { width: 100%; aspect-ratio: 16 / 5; object-fit: cover; object-position: top; border-radius: 6px; border: 1px solid var(--border-subtle); background: #fff; cursor: zoom-in; }
+.proof-frame code { font: 400 11.5px/1.4 var(--font-mono); }
+.proof-frame code.hit { color: var(--ok); } .proof-frame code.none { color: var(--miss); }
+.proof-empty { padding: 20px; color: var(--text-tertiary); font-size: 12px; }
+@keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.numbers { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 1px solid var(--border-subtle); border-bottom: 1px solid var(--border-subtle); }
+.numbers div { padding: 18px 16px; display: grid; gap: 2px; border-left: 1px solid var(--border-subtle); }
+.numbers div:first-child { border-left: 0; padding-left: 0; }
+.numbers b { font-size: 34px; font-weight: 400; letter-spacing: -1px; color: var(--text-display); font-variant-numeric: tabular-nums; }
+.numbers span { font-size: 12.5px; color: var(--text-tertiary); }
+.result { grid-template-rows: auto minmax(2.4em, auto) 1fr auto; }
+.result .n { font-size: 26px; line-height: 1.15; letter-spacing: -0.6px; }
+.result .go { font-size: 13px; color: var(--iris-text); }
+.result:hover .go { text-decoration: underline; }
+@media (max-width: 900px) { .numbers { grid-template-columns: repeat(2, minmax(0, 1fr)); } .numbers div:nth-child(3) { border-left: 0; padding-left: 0; } }
+@media (prefers-reduced-motion: reduce) { .proof-frame { animation: none; } }
+
+/* ---- requirement page v2 ---- */
+details.setup > summary { color: var(--text-tertiary); font-size: 12.5px; padding: 4px 2px; }
+.cmp-tabs { display: none; gap: 4px; padding: 4px; border-radius: var(--r-pill); background: var(--bg-surface-2); border: 1px solid var(--border-subtle); width: max-content; max-width: 100%; }
+.cmp-tabs button { height: 32px; padding: 0 14px; border-radius: var(--r-pill); border: 0; background: transparent; color: var(--text-secondary); font: 500 13px/1 var(--font-sans); cursor: pointer; }
+.cmp-tabs button[aria-selected="true"] { background: var(--bg-surface-3); color: var(--text-display); }
+@media (max-width: 900px) {
+  .cmp-tabs { display: flex; }
+  .cmp > [data-key]:not(.active), .netdiff > [data-key]:not(.active) { display: none; }
+}
 </style>
 </head>
 <body>
@@ -336,7 +386,10 @@ async function shell(view) {
   if (!overviewCache) overviewCache = await api('/api/overview');
   const o = overviewCache;
   document.querySelectorAll('.bar nav a').forEach((a) => a.setAttribute('aria-current', a.dataset.view === view ? 'page' : 'false'));
-  $('#snap').textContent = SNAP ? `Recorded results · ${time(SNAP.generatedAt)}` : (o.lastKnownBalance != null ? `Local · Kane credits ${credits(o.lastKnownBalance)}` : 'Local');
+  const snapEl = $('#snap');
+  snapEl.textContent = SNAP ? `Snapshot of real runs · ${new Date(SNAP.generatedAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}` : (o.lastKnownBalance != null ? `Local · Kane credits ${credits(o.lastKnownBalance)}` : 'Local');
+  snapEl.title = SNAP ? `Recorded from live Kane CLI runs on ${time(SNAP.generatedAt)}. This page is a read-only snapshot; reproduce it with the commands in the README.` : 'Live view of your local Recast database';
+  const menu = document.querySelector('.menu'); if (menu) menu.hidden = view === 'landing';
   return o;
 }
 function loading() {
@@ -352,38 +405,66 @@ function notFound() {
 }
 
 // ---------- landing ----------
+const DEMO_URL = null; // set to the YouTube URL once the demo is published
+
+/** Pick the decisive screenshot of a run: the step that pressed or looked for the control, else the last one. */
+function decisiveShot(run) {
+  if (!run) return null;
+  const shots = run.steps.filter((s) => s.shot);
+  return shots.find((s) => s.status === 'failed') || [...shots].reverse().find((s) => /kill|cancel|preempt/i.test(s.summary)) || shots.at(-1) || null;
+}
+
+function proofFrame(run, label, tone, i) {
+  const st = decisiveShot(run);
+  const net = run?.network?.length ? `${run.network[0].method} ${run.network[0].path.replace('/ui/api/query/', '…/')} → ${run.network[0].status}` : 'no request sent';
+  return h('figure', { class: `proof-frame ${tone}`, style: `--i:${i}` },
+    h('figcaption', {}, h('span', { class: 'dot' }), label),
+    st ? h('img', { src: dataPath(`/api/runs/${run.id}/shots/${st.dir}.jpg`), alt: `${label}: ${st.summary}`, loading: 'eager', tabindex: '0', onclick: (e) => lightbox(e.target.src, `${label} · ${st.summary}`) }) : h('div', { class: 'proof-empty' }, 'no screenshot'),
+    h('code', { class: run?.network?.length ? 'hit' : 'none' }, net));
+}
+
 async function landing() {
   const o = await shell('landing');
   const r = o.report, s = r.scope;
   const byId = Object.fromEntries(r.rows.map((x) => [x.requirement_id, x]));
-  const seam = h('div', { class: 'seam', 'aria-hidden': 'true', html: '' });
-  seam.innerHTML = '<svg viewBox="0 0 420 300"><rect x="0" y="40" width="130" height="220" rx="24" fill="#15846e"/><g fill="#9a9a9a">' + Array.from({ length: 12 }, (_, i) => `<circle cx="172" cy="${52 + i * 18}" r="1.6"/><circle cx="196" cy="${52 + i * 18}" r="1.6"/>`).join('') + '</g><rect x="236" y="0" width="184" height="210" rx="24" fill="#8052ff"/><rect x="236" y="230" width="96" height="48" rx="24" fill="#ffb829"/></svg>';
-  const card = (id, title, desc) => { const x = byId[id]; return x ? h('a', { class: 'result', href: `#/requirements/${id}` }, badge(x.result), h('div', { class: 'n' }, title), h('div', { class: 'sec', style: 'font-size:13.5px' }, desc), h('span', { class: 'id' }, `${id} →`)) : null; };
+  const cancel = await api('/api/requirements/REQ-QRY-CANCEL').catch(() => null);
+  const c = cancel?.compare;
+  const fixed = !!byId['REQ-QRY-CANCEL']?.patch_sha;
+  const card = (id, title, desc, extra) => { const x = byId[id]; return x ? h('a', { class: 'result', href: `#/requirements/${id}` },
+    h('div', { class: 'chipline' }, h('span', { class: 'muted', style: 'font-size:11.5px' }, 'New UI:'), badge(x.result), extra || null),
+    h('div', { class: 'n' }, title), h('div', { class: 'sec', style: 'font-size:13.5px' }, desc), h('span', { class: 'go' }, 'See the evidence →')) : null; };
   page().replaceChildren(
     h('section', { class: 'hero' },
       h('div', {}, h('div', { class: 'eyebrow' }, 'Behaviour parity for UI migrations'), h('h1', {}, 'Rebuild the software. Keep the behaviour.'),
-        h('p', { class: 'lede' }, 'Recast uses Kane CLI to observe a legacy web app, freezes what it does into hashed requirements, finds what the replacement UI lost, has a coding agent fix it, and accepts the fix only when Kane and the app\'s own API prove it.'),
-        h('div', { class: 'cta' }, h('a', { class: 'btn-primary', href: '#/parity' }, 'See the results'), h('a', { class: 'btn-line', href: REPO, target: '_blank', rel: 'noopener' }, 'GitHub'))),
-      seam),
+        h('p', { class: 'lede' }, 'Recast finds what a UI rewrite lost, has a coding agent fix it, and accepts the fix only when Kane CLI and the app\'s own API prove it.'),
+        h('div', { class: 'cta' },
+          h('a', { class: 'btn-primary', href: '#/requirements/REQ-QRY-CANCEL' }, 'See the evidence'),
+          DEMO_URL ? h('a', { class: 'btn-line', href: DEMO_URL, target: '_blank', rel: 'noopener' }, '▶ Watch the demo') : null,
+          h('a', { class: 'btn-line', href: '#/parity' }, 'All requirements'),
+          h('a', { class: 'btn-ghost', href: REPO, target: '_blank', rel: 'noopener' }, 'GitHub ↗')),
+        h('p', { class: 'cred' }, `Built with Kane CLI by TestMu AI · Trino 481 · ${r.runs.total} real Kane runs · open source`)),
+      c ? h('div', { class: 'proof', 'aria-label': 'The same task on three versions of the UI' },
+        proofFrame(c.source, 'Legacy UI: has Kill', 'ok', 0),
+        proofFrame(c.target, 'New UI: Kill is missing', 'fail', 1),
+        c.candidate ? proofFrame(c.candidate, 'Agent\'s fix: Kill restored', 'ok', 2) : null) : null),
+    h('section', { class: 'numbers' },
+      h('div', {}, h('b', {}, String(s.frozen)), h('span', {}, 'frozen requirements')),
+      h('div', {}, h('b', {}, String(s.missing)), h('span', {}, 'real gaps found')),
+      h('div', {}, h('b', {}, String(s.fixesVerified || 0)), h('span', {}, 'fixed by an agent, verified by Kane')),
+      h('div', {}, h('b', {}, String(s.verified - s.intentional)), h('span', {}, 'equivalent behaviour, no false alarm'))),
     h('section', { style: 'display:grid;gap:14px' }, h('div', { class: 'eyebrow' }, 'Real case: Trino 481, classic UI → new preview UI'),
       h('div', { class: 'results' },
-        card('REQ-QRY-CANCEL', byId['REQ-QRY-CANCEL']?.patch_sha ? 'Lost, then fixed' : 'Cancel was lost', byId['REQ-QRY-CANCEL']?.patch_sha ? 'Kill a running query was missing in the new UI. Claude Code wrote a fix from evidence alone, and Kane proved it 2 of 2 with no regressions.' : 'Kill a running query works in the classic UI and is missing in the new one: 2 of 2 runs, confirmed by Trino\'s API.'),
-        card('REQ-QRY-PREEMPT', 'Kane found a second gap', 'Kane Exploration discovered the Preempt control on its own. The new UI lacks it too.'),
+        card('REQ-QRY-CANCEL', fixed ? 'Lost, then fixed' : 'Cancel was lost', fixed ? 'Kill a running query was missing in the new UI. Claude Code wrote a fix from evidence alone; Kane proved it 2 of 2 with no regressions.' : 'Kill a running query works in the classic UI and is missing in the new one: 2 of 2 runs, confirmed by Trino\'s API.', fixed ? h('span', { class: 'badge b-verified' }, svg(GLYPH.code), 'Fix verified') : null),
+        card('REQ-QRY-PREEMPT', 'Kane found another gap', 'Kane Exploration discovered the Preempt control on its own. The new UI lacks it too: 2 of 2 runs.'),
         card('REQ-QRY-OWNER', 'No false alarms', 'Seeing who ran a query works in both UIs with different layouts, so Recast says Preserved.'))),
     h('section', { style: 'display:grid;gap:14px' }, h('div', { class: 'eyebrow' }, 'How it works'),
       h('div', { class: 'steps5' },
         h('div', {}, h('b', {}, '1 · Observe'), h('span', {}, 'Kane explores the legacy app and maps its screens, controls and flows.')),
         h('div', {}, h('b', {}, '2 · Freeze'), h('span', {}, 'Two matching runs establish a requirement; a hash locks it.')),
-        h('div', {}, h('b', {}, '3 · Compare'), h('span', {}, 'Same intent on the new UI; the oracle decides, not the test agent.')),
+        h('div', {}, h('b', {}, '3 · Compare'), h('span', {}, 'Same intent on the new UI; the app\'s API decides, not the test agent.')),
         h('div', {}, h('b', {}, '4 · Repair'), h('span', {}, 'A coding agent fixes the gap in a sealed copy, from evidence only.')),
         h('div', {}, h('b', {}, '5 · Prove'), h('span', {}, 'Kane re-runs the frozen requirement plus a regression check.')))),
-    h('section', { class: 'stats' },
-      h('div', { class: 'stat' }, h('div', { class: 'v' }, `${s.verified} / ${s.frozen}`), h('div', { class: 'k' }, 'frozen requirements verified')),
-      h('div', { class: 'stat' }, h('div', { class: 'v' }, String(s.missing)), h('div', { class: 'k' }, 'confirmed gaps')),
-      h('div', { class: 'stat' }, h('div', { class: 'v' }, String(s.fixesVerified || 0)), h('div', { class: 'k' }, 'agent fixes verified by Kane')),
-      h('div', { class: 'stat' }, h('div', { class: 'v' }, String(r.runs.total)), h('div', { class: 'k' }, 'real Kane runs recorded')),
-      h('div', { class: 'stat' }, h('div', { class: 'v' }, String(r.discovery.candidates)), h('div', { class: 'k' }, 'candidates Kane discovered'))),
-    h('p', { class: 'muted', style: 'font-size:12.5px' }, `Read-only snapshot of real local runs (Kane CLI ${r.versions.kaneCli ?? ''}, trinodb/trino:481). Reproduce it with the commands in the README.`),
+    h('p', { class: 'muted', style: 'font-size:12.5px' }, `Snapshot of real local runs (Kane CLI ${r.versions.kaneCli ?? ''}, trinodb/trino:481). Reproduce it with the commands in the README.`),
   );
 }
 
@@ -465,20 +546,36 @@ function lifecycle(d) {
   return h('ol', { class: 'life' }, items);
 }
 
-function stepList(run, label) {
-  if (!run) return h('div', { class: 'col' }, h('div', { class: 'h' }, h('h2', {}, label)), h('p', { class: 'muted' }, 'No run yet.'));
-  const meaningful = run.steps.filter((s) => (s.kind !== 'wait' || s.status === 'failed') && (s.summary.replace(/^[a-z_]+:\s*/i, '').trim() || s.status === 'failed'));
-  return h('div', { class: 'col' },
+const isSetup = (st) => /log ?in|login|username|password|a login page/i.test(st.summary);
+function stepRow(run, label, st) {
+  return h('div', { class: `step ${st.status === 'failed' ? 'failed' : ''}` }, h('span', { class: 'o' }, String(st.ordinal)), h('span', { class: 's' }, h('b', {}, st.kind), ' ', st.summary.replace(/^[a-z_]+:\s*/i, '').replace(/^(PRIMARY|HINTS):\s*/g, '').slice(0, 140)),
+    st.shot ? h('img', { class: 'thumb', loading: 'lazy', src: dataPath(`/api/runs/${run.id}/shots/${st.dir}.jpg`), alt: `${label} step ${st.ordinal}: ${st.summary}`, tabindex: '0', onclick: (e) => lightbox(e.target.src, `${label} · step ${st.ordinal} · ${st.summary}`), onkeydown: (e) => { if (e.key === 'Enter') lightbox(e.target.src, `${label} · step ${st.ordinal}`); } }) : h('span'));
+}
+function stepList(run, label, key) {
+  if (!run) return h('div', { class: 'col', 'data-key': key }, h('div', { class: 'h' }, h('h2', {}, label)), h('p', { class: 'muted' }, 'No run yet.'));
+  const meaningful = run.steps.filter((st) => (st.kind !== 'wait' || st.status === 'failed') && (st.summary.replace(/^[a-z_]+:\s*/i, '').trim() || st.status === 'failed'));
+  const setup = meaningful.filter((st) => isSetup(st) && st.status !== 'failed');
+  const main = meaningful.filter((st) => !setup.includes(st));
+  return h('div', { class: 'col', 'data-key': key },
     h('div', { class: 'h' }, h('div', {}, h('h2', {}, label), h('div', { class: 'id' }, `${run.environment} · run ${short(run.id)}${run.candidateSha ? ` · ${short(run.candidateSha, 10)}` : ''}`)), badge(run.verdict || run.state)),
-    meaningful.map((s) => h('div', { class: `step ${s.status === 'failed' ? 'failed' : ''}` }, h('span', { class: 'o' }, String(s.ordinal)), h('span', { class: 's' }, h('b', {}, s.kind), ' ', s.summary.replace(/^[a-z_]+:\s*/i, '').replace(/^(PRIMARY|HINTS):\s*/g, '').slice(0, 140)),
-      s.shot ? h('img', { class: 'thumb', loading: 'lazy', src: dataPath(`/api/runs/${run.id}/shots/${s.dir}.jpg`), alt: `${label} step ${s.ordinal}: ${s.summary}`, tabindex: '0', onclick: (e) => lightbox(e.target.src, `${label} · step ${s.ordinal} · ${s.summary}`), onkeydown: (e) => { if (e.key === 'Enter') lightbox(e.target.src, `${label} · step ${s.ordinal}`); } }) : h('span'))),
+    setup.length ? h('details', { class: 'setup' }, h('summary', {}, `${setup.length} setup step${setup.length > 1 ? 's' : ''} (sign-in)`), h('div', { style: 'display:grid;gap:8px;margin-top:8px' }, setup.map((st) => stepRow(run, label, st)))) : null,
+    main.map((st) => stepRow(run, label, st)),
     h('dl', { class: 'kv', style: 'margin-top:6px' }, ...Object.entries(run.observed || {}).flatMap(([k, v]) => [h('dt', {}, k), h('dd', {}, JSON.stringify(v))]), h('dt', {}, 'credits'), h('dd', {}, credits(run.credits))),
     run.kaneSaid ? h('blockquote', { class: 'kane' }, h('b', {}, `Kane said: ${run.kaneSaid.status}${run.kaneSaid.category ? ` (${run.kaneSaid.category.replace(/_/g, ' ')})` : ''}`), run.kaneSaid.oneLiner || '') : null);
 }
 
-function netCol(run) {
-  if (!run) return h('div', { class: 'net' }, '—');
-  return h('div', { class: 'net' }, run.network.length ? run.network.map((n) => h('div', { class: 'hit' }, `${n.method} ${n.path} → ${n.status}`)) : h('div', { class: 'none' }, 'No state-changing request sent'));
+function compareTabs(cols) {
+  const keys = cols.filter(Boolean);
+  const bar = h('div', { class: 'cmp-tabs', role: 'tablist', 'aria-label': 'Choose a version' });
+  const select = (k) => { document.querySelectorAll('.cmp [data-key], .netdiff [data-key]').forEach((el) => el.classList.toggle('active', el.dataset.key === k)); bar.querySelectorAll('button').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.key === k))); };
+  for (const [k, label] of keys) bar.append(h('button', { type: 'button', role: 'tab', 'data-key': k, 'aria-selected': 'false', onclick: () => select(k) }, label));
+  setTimeout(() => select(keys[keys.length - 1][0]), 0);
+  return bar;
+}
+
+function netCol(run, key) {
+  if (!run) return h('div', { class: 'net', 'data-key': key }, '—');
+  return h('div', { class: 'net', 'data-key': key }, run.network.length ? run.network.map((n) => h('div', { class: 'hit' }, `${n.method} ${n.path} → ${n.status}`)) : h('div', { class: 'none' }, 'No state-changing request sent'));
 }
 
 async function requirement(id) {
@@ -499,9 +596,10 @@ async function requirement(id) {
       h('div', { style: 'display:grid;gap:24px;min-width:0' },
         h('section', { class: 'cmpwrap', 'aria-label': 'Step by step comparison' },
           h('h2', {}, 'Same intent, step by step'),
-          h('div', { class: 'cmp', style: `--cols:${cols}` }, stepList(c.source, 'Legacy UI'), stepList(c.target, 'New UI'), c.candidate ? stepList(c.candidate, 'Fixed candidate') : null),
+          compareTabs([['legacy', 'Legacy UI'], ['new', 'New UI'], c.candidate ? ['fixed', 'Fixed'] : null]),
+          h('div', { class: 'cmp', style: `--cols:${cols}` }, stepList(c.source, 'Legacy UI', 'legacy'), stepList(c.target, 'New UI', 'new'), c.candidate ? stepList(c.candidate, 'Fixed candidate', 'fixed') : null),
           h('h2', { style: 'margin-top:8px' }, 'What the page sent to the server'),
-          h('div', { class: 'netdiff', style: `--cols:${cols}` }, netCol(c.source), netCol(c.target), c.candidate ? netCol(c.candidate) : null)),
+          h('div', { class: 'netdiff', style: `--cols:${cols}` }, netCol(c.source, 'legacy'), netCol(c.target, 'new'), c.candidate ? netCol(c.candidate, 'fixed') : null)),
         verifiedAttempt?.patch ? h('section', { 'aria-label': 'Patch' }, h('h2', { style: 'margin-bottom:10px' }, `Patch · attempt ${verifiedAttempt.attempt} · ${verifiedAttempt.agent}`), renderDiff(verifiedAttempt.patch), verifiedAttempt.agent_summary ? h('blockquote', { class: 'kane', style: 'margin-top:10px' }, h('b', {}, 'Agent said (not used to judge)'), verifiedAttempt.agent_summary.slice(0, 700)) : null) : null),
       h('aside', { class: 'aside' },
         h('div', { class: 'panel' }, h('div', { class: 'head' }, h('h2', {}, 'Lifecycle')), h('div', { class: 'body' }, lifecycle(d))),
@@ -554,7 +652,7 @@ function reportMenu() {
   const wrap = h('div', { class: 'menu' });
   const list = h('div', { class: 'menu-list', hidden: true, role: 'menu' },
     ['md', 'csv', 'json'].map((f) => h('a', { role: 'menuitem', href: dataPath(`/api/report.${f}`), target: '_blank', rel: 'noopener' }, { md: 'Acceptance report (Markdown)', csv: 'Report rows (CSV)', json: 'Full report (JSON)' }[f])));
-  const btn = h('button', { class: 'btn', type: 'button', 'aria-haspopup': 'menu', 'aria-expanded': 'false', onclick: (e) => { e.stopPropagation(); list.hidden = !list.hidden; btn.setAttribute('aria-expanded', String(!list.hidden)); } }, svg(GLYPH.dl), ' Report');
+  const btn = h('button', { class: 'btn', type: 'button', 'aria-haspopup': 'menu', 'aria-expanded': 'false', onclick: (e) => { e.stopPropagation(); list.hidden = !list.hidden; btn.setAttribute('aria-expanded', String(!list.hidden)); } }, svg(GLYPH.dl), ' Download report');
   addEventListener('click', () => { list.hidden = true; btn.setAttribute('aria-expanded', 'false'); });
   wrap.append(btn, list);
   return wrap;
