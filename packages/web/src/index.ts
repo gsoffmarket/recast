@@ -160,7 +160,7 @@ export function startWebServer(sql: db.Sql, projectName: string, port = 4173) {
       const p = url.pathname;
       if (req.method !== 'GET') return json(res, 405, { error: 'read-only' });
       if (p === '/' || p === '/index.html') {
-        res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'content-security-policy': "default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'" });
+        res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'content-security-policy': "default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'; img-src 'self' data:" });
         return res.end(await readFile(join(PUBLIC, 'index.html')));
       }
       if (p === '/api/overview') { const o = await overview(sql, projectName); return o ? json(res, 200, o) : json(res, 404, { error: 'no project' }); }

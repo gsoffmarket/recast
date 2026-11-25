@@ -2,8 +2,13 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Recast</title>
+<meta name="description" content="Recast finds what a UI rewrite lost, has a coding agent fix it, and proves the fix with Kane CLI. Live results from Trino 481.">
+<meta property="og:title" content="Recast: rebuild the software, keep the behaviour">
+<meta property="og:description" content="Behaviour parity for UI migrations, proven with Kane CLI. Real case: Trino 481 classic UI vs preview UI.">
+<meta name="theme-color" content="#000000">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 22'%3E%3Crect x='1' y='3' width='7' height='16' rx='3' fill='%2315846e'/%3E%3Crect x='14' y='3' width='7' height='16' rx='3' fill='%238052ff'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300..700&family=Geist+Mono:wght@400..600&display=swap">
 <style>
@@ -122,27 +127,145 @@ pre.report { margin: 0; white-space: pre-wrap; font: 400 13px/1.6 var(--font-mon
 .empty h3 { font-size: 20px; font-weight: 400; letter-spacing: -.4px; color: var(--text-primary); margin: 0 0 6px; }
 @media (max-width: 760px) { .shell { grid-template-columns: 1fr; } .side { position: static; height: auto; flex-direction: row; align-items: center; } .side .foot { display: none; } .nav { grid-auto-flow: column; } header.top, .content { padding-left: 16px; padding-right: 16px; } }
 @media (prefers-reduced-motion: reduce) { *, *::before { animation: none !important; transition-duration: 0ms !important; } }
+
+
+
+/* ---- v2 layout: top bar app shell ---- */
+.app { min-height: 100%; display: flex; flex-direction: column; }
+.bar { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 24px; height: 56px; padding: 0 max(16px, env(safe-area-inset-right, 0px)) 0 max(16px, env(safe-area-inset-left, 0px)); background: rgba(0,0,0,.86); backdrop-filter: blur(8px); border-bottom: 1px solid var(--border-subtle); }
+.bar .brand { padding: 0; }
+.bar nav { display: flex; gap: 2px; }
+.bar nav a { display: inline-flex; align-items: center; height: 32px; padding: 0 12px; border-radius: var(--r-sm); color: var(--text-secondary); font: 500 13px/1 var(--font-sans); text-decoration: none; }
+.bar nav a:hover { background: var(--bg-hover); color: var(--text-primary); }
+.bar nav a[aria-current="page"] { background: var(--bg-surface-3); color: var(--text-display); }
+.bar .spacer { flex: 1; }
+.bar .snap { font: 400 12px/1.3 var(--font-mono); color: var(--text-tertiary); white-space: nowrap; }
+.menu { position: relative; }
+.menu > button { height: 32px; }
+.menu-list { position: absolute; right: 0; top: 38px; min-width: 200px; background: var(--bg-surface-3); border: 1px solid var(--border-default); border-radius: var(--r-md); box-shadow: 0 12px 32px rgba(0,0,0,.72); padding: 6px; display: grid; gap: 2px; z-index: 20; }
+.menu-list[hidden] { display: none; }
+.menu-list a { display: block; padding: 8px 10px; border-radius: var(--r-sm); color: var(--text-primary); font-size: 13px; text-decoration: none; }
+.menu-list a:hover { background: var(--bg-hover); }
+main.page { width: 100%; max-width: 1200px; margin: 0 auto; padding: 32px max(16px, env(safe-area-inset-right, 0px)) 64px max(16px, env(safe-area-inset-left, 0px)); display: grid; gap: 28px; }
+main.page { grid-template-columns: minmax(0, 1fr); }
+.col .id, .req-head .id { white-space: normal; }
+.col .h > div { min-width: 0; flex: 1 1 auto; }
+div[style*="display:grid"], section[style*="display:grid"], .req-head, .req-list, .cmpwrap, .col, .life li > div { grid-template-columns: minmax(0, 1fr); min-width: 0; }
+main.page > *, .story > *, .exec > *, .grid2 > *, .cmp > *, .results > *, .stats > * { min-width: 0; }
+.id, .req-head h1, .req-card .t, .meta span, .kv dd { overflow-wrap: anywhere; }
+.crumbs { font-size: 13px; color: var(--text-tertiary); display: flex; gap: 6px; flex-wrap: wrap; }
+.crumbs a { color: var(--text-secondary); }
+
+/* ---- landing ---- */
+.hero { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 48px; align-items: center; padding: 40px 0 8px; }
+.hero h1 { font-size: clamp(44px, 7vw, 96px); line-height: 1.0; letter-spacing: -0.04em; font-weight: 400; color: var(--text-display); margin: 0; text-wrap: balance; }
+.hero .lede { font-size: 19px; font-weight: 300; line-height: 1.55; color: var(--text-secondary); max-width: 56ch; margin: 20px 0 28px; }
+.cta { display: flex; gap: 12px; flex-wrap: wrap; }
+.btn-primary { display: inline-flex; align-items: center; height: 44px; padding: 0 24px; border-radius: var(--r-pill); background: var(--iris); color: var(--on-iris); font: 500 14px/1 var(--font-sans); letter-spacing: .52px; text-transform: uppercase; text-decoration: none; border: 0; cursor: pointer; }
+.btn-primary:hover { background: var(--iris-hover); text-decoration: none; }
+.btn-line { display: inline-flex; align-items: center; height: 44px; padding: 0 20px; border-radius: var(--r-pill); border: 1px solid var(--border-strong); color: var(--text-primary); font: 500 14px/1 var(--font-sans); text-decoration: none; }
+.btn-line:hover { background: var(--bg-hover); text-decoration: none; }
+.seam { width: 100%; max-width: 420px; justify-self: end; }
+.results { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.result { display: grid; gap: 10px; padding: 20px; border-radius: var(--r-md); background: var(--bg-surface-2); border: 1px solid var(--border-subtle); color: inherit; text-decoration: none; }
+.result:hover { border-color: var(--border-strong); text-decoration: none; }
+.result .n { font-size: 32px; letter-spacing: -0.96px; color: var(--text-display); }
+.steps5 { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; counter-reset: s; }
+.steps5 div { padding: 16px; border-top: 1px solid var(--border-default); }
+.steps5 b { display: block; font-weight: 500; color: var(--text-primary); margin-bottom: 4px; }
+.steps5 span { color: var(--text-secondary); font-size: 13px; }
+
+/* ---- home ---- */
+.exec { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 16px; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
+.stat { padding: 14px 16px; border-radius: var(--r-md); background: var(--bg-surface-2); border: 1px solid var(--border-subtle); }
+.stat .v { font-size: 24px; letter-spacing: -0.48px; color: var(--text-display); font-variant-numeric: tabular-nums; }
+.stat .k { font-size: 12px; color: var(--text-tertiary); }
+.trend svg { width: 100%; height: 140px; display: block; }
+.req-list { display: grid; gap: 8px; }
+.req-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 16px; align-items: center; padding: 16px 18px; border-radius: var(--r-md); background: var(--bg-surface-2); border: 1px solid var(--border-subtle); color: inherit; text-decoration: none; }
+.req-card:hover { border-color: var(--border-strong); background: var(--bg-surface-3); text-decoration: none; }
+.req-card .t { color: var(--text-primary); }
+.req-card .meta { font: 400 12px/1.5 var(--font-mono); color: var(--text-tertiary); display: flex; gap: 12px; flex-wrap: wrap; }
+.chipline { display: flex; gap: 6px; flex-wrap: wrap; }
+.prov { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px; border-radius: var(--r-pill); border: 1px solid var(--border-default); font: 400 11.5px/1 var(--font-sans); color: var(--text-secondary); white-space: nowrap; }
+.prov i { width: 6px; height: 6px; border-radius: 50%; background: var(--text-tertiary); }
+.prov.kane i { background: var(--iris); } .prov.oracle i { background: var(--verdant-text); } .prov.op i { background: var(--saffron); } .prov.agent i { background: var(--chg); }
+
+/* ---- requirement story ---- */
+.req-head { display: grid; gap: 12px; }
+.req-head h1 { font-size: clamp(24px, 3.2vw, 34px); letter-spacing: -0.03em; }
+.why { border-left: 2px solid var(--iris); padding: 12px 16px; background: var(--bg-surface-1); border-radius: 0 var(--r-sm) var(--r-sm) 0; display: grid; gap: 6px; font-size: 13.5px; }
+.why ul { margin: 0; padding-left: 18px; color: var(--text-secondary); }
+details > summary { cursor: pointer; color: var(--iris-text); font-size: 13px; list-style: none; }
+details > summary::-webkit-details-marker { display: none; }
+.story { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 24px; align-items: start; }
+.life { list-style: none; margin: 0; padding: 0; display: grid; }
+.life li { display: grid; grid-template-columns: 28px 1fr; gap: 14px; position: relative; padding-bottom: 22px; }
+.life li::before { content: ""; position: absolute; left: 13px; top: 28px; bottom: 0; width: 1px; background: var(--border-default); }
+.life li:last-child::before { display: none; }
+.life .node { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: var(--bg-surface-3); color: var(--text-tertiary); border: 1px solid var(--border-default); }
+.life .node svg { width: 14px; height: 14px; }
+.life .ok .node { color: var(--ok); background: var(--ok-bg); border-color: transparent; }
+.life .fail .node { color: var(--miss); background: var(--miss-bg); border-color: transparent; }
+.life .kane .node { color: var(--iris-text); background: var(--bg-selected); border-color: transparent; }
+.life .warn .node { color: var(--unc); background: var(--unc-bg); border-color: transparent; }
+.life .live .node { background: var(--saffron); color: var(--on-saffron); animation: pulse 1.6s var(--ease-out) infinite; }
+.life h3 { margin: 3px 0 2px; font-size: 14.5px; font-weight: 500; color: var(--text-primary); }
+.life .sub { color: var(--text-secondary); font-size: 13px; }
+.life .when { font: 400 12px/1.6 var(--font-mono); color: var(--text-tertiary); }
+.aside { display: grid; gap: 12px; position: sticky; top: 72px; }
+.story.wide { grid-template-columns: minmax(0, 1fr); }
+.story.wide .aside { position: static; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); align-items: start; }
+.cmpwrap { display: grid; gap: 12px; }
+.cmp { display: grid; grid-template-columns: repeat(var(--cols, 2), minmax(0, 1fr)); gap: 12px; }
+.col { display: grid; gap: 8px; align-content: start; min-width: 0; }
+.col .h { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; padding-bottom: 4px; }
+.step { display: grid; grid-template-columns: 22px minmax(0, 1fr) 64px; gap: 8px; align-items: center; padding: 6px 8px; border-radius: var(--r-sm); background: var(--bg-surface-2); border: 1px solid var(--border-subtle); font-size: 12.5px; }
+.step.failed { border-color: rgba(255,149,146,.35); background: var(--miss-bg); }
+.step .o { font: 400 11px/1 var(--font-mono); color: var(--text-tertiary); text-align: right; }
+.step .s { color: var(--text-secondary); overflow-wrap: anywhere; }
+.step .s b { color: var(--text-primary); font-weight: 500; }
+.thumb { width: 64px; height: 40px; border-radius: 4px; object-fit: cover; object-position: top; border: 1px solid var(--border-subtle); cursor: zoom-in; background: var(--bg-canvas); }
+.netdiff { display: grid; grid-template-columns: repeat(var(--cols, 2), minmax(0, 1fr)); gap: 12px; }
+.net { padding: 10px 12px; border-radius: var(--r-sm); background: var(--bg-surface-1); border: 1px dashed var(--border-default); font: 400 12px/1.6 var(--font-mono); color: var(--text-secondary); }
+.net .hit { color: var(--ok); } .net .none { color: var(--miss); }
+.lightbox { position: fixed; inset: 0; background: rgba(0,0,0,.9); display: grid; place-items: center; z-index: 50; padding: 24px; }
+.lightbox img { max-width: min(1400px, 100%); max-height: 82vh; border-radius: var(--r-md); border: 1px solid var(--border-default); }
+.lightbox .cap { margin-top: 12px; color: var(--text-secondary); font-size: 13px; text-align: center; max-width: 900px; }
+.skeleton { background: linear-gradient(90deg, var(--bg-surface-2), var(--bg-surface-3), var(--bg-surface-2)); background-size: 200% 100%; animation: sk 1.2s ease-in-out infinite; border-radius: var(--r-md); }
+@keyframes sk { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+.notfound { padding: 80px 16px; text-align: center; display: grid; gap: 12px; justify-items: center; }
+.notfound .big { font-size: 72px; }
+@media (max-width: 900px) {
+  .hero, .exec, .story { grid-template-columns: 1fr; }
+  .seam { justify-self: start; max-width: 300px; }
+  .aside { position: static; }
+  .cmp, .netdiff { grid-template-columns: 1fr; }
+  .bar nav a { padding: 0 8px; }
+  .bar .snap { display: none; }
+}
+@media (max-width: 520px) { .bar { gap: 12px; } .brand span.word { display: none; } .req-card { grid-template-columns: 1fr; } }
+
 </style>
 </head>
 <body>
-<div class="shell">
-  <aside class="side" aria-label="Navigation">
-    <div class="brand">
+<a href="#page" class="btn" style="position:absolute;left:-9999px;top:8px" onfocus="this.style.left='8px'" onblur="this.style.left='-9999px'">Skip to content</a>
+<div class="app">
+  <header class="bar">
+    <a class="brand" href="#/" style="text-decoration:none">
       <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><rect x="1" y="3" width="7" height="16" rx="3" fill="#15846e"/><circle cx="11" cy="7" r="1" fill="#9a9a9a"/><circle cx="11" cy="11" r="1" fill="#9a9a9a"/><circle cx="11" cy="15" r="1" fill="#9a9a9a"/><rect x="14" y="3" width="7" height="16" rx="3" fill="#8052ff"/></svg>
-      Recast
-    </div>
-    <nav class="nav">
-      <a href="#parity" data-view="parity"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="2" y="2.5" width="12" height="11" rx="2"/><path d="M2 6.5h12M6 6.5v7"/></svg>Parity</a>
-      <a href="#discovery" data-view="discovery"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>Discovery</a>
-      <a href="#repair" data-view="repair"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M5 4L2 8l3 4M11 4l3 4-3 4M9.5 3l-3 10"/></svg>Repair</a>
-      <a href="#report" data-view="report"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M4 1.5h5.5L12.5 4.5V14.5h-8.5z"/><path d="M6.5 8h4M6.5 11h4"/></svg>Report</a>
+      <span class="word">Recast</span>
+    </a>
+    <nav aria-label="Main">
+      <a href="#/parity" data-view="parity">Requirements</a>
+      <a href="#/discovery" data-view="discovery">Discovery</a>
     </nav>
-    <div class="foot"><span id="credits">Kane credits —</span><span id="mode">Read-only · local</span></div>
-  </aside>
-  <main>
-    <header class="top"><div class="crumb" id="crumb">Recast</div><div class="envs" id="envs"></div></header>
-    <div class="content" id="view" aria-live="polite"></div>
-  </main>
+    <span class="spacer"></span>
+    <span class="snap" id="snap"></span>
+    <span id="report-slot"></span>
+  </header>
+  <main class="page" id="page" aria-live="polite"></main>
 </div>
 <script>
 'use strict';
@@ -153,7 +276,7 @@ function h(tag, attrs, ...kids) {
     if (v == null || v === false) continue;
     if (k === 'class') el.className = v; else if (k.startsWith('on')) el.addEventListener(k.slice(2), v); else el.setAttribute(k, v === true ? '' : v);
   }
-  for (const k of kids.flat()) if (k != null && k !== false) el.append(k instanceof Node ? k : document.createTextNode(String(k)));
+  for (const k of kids.flat(Infinity)) if (k != null && k !== false) el.append(k instanceof Node ? k : document.createTextNode(String(k)));
   return el;
 }
 const svg = (inner, vb = '0 0 16 16') => { const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('viewBox', vb); s.setAttribute('fill', 'none'); s.setAttribute('stroke', 'currentColor'); s.setAttribute('stroke-width', '1.5'); s.setAttribute('stroke-linecap', 'round'); s.setAttribute('stroke-linejoin', 'round'); s.setAttribute('aria-hidden', 'true'); s.innerHTML = inner; return s; };
@@ -163,245 +286,299 @@ const GLYPH = {
   chg: '<path d="M2.5 5.5h10L10 3M13.5 10.5h-10L6 13"/>',
   unc: '<path d="M8 2.3l6.2 11H1.8z"/><path d="M8 6.6v3M8 11.4h.01"/>',
   unt: '<circle cx="8" cy="8" r="6.25" stroke-dasharray="2.2 2.2"/>',
+  search: '<circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/>',
+  lock: '<rect x="3.5" y="7" width="9" height="6.5" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 015 0v2"/>',
+  play: '<path d="M5 3.5v9l7-4.5z"/>',
+  code: '<path d="M5 4L2 8l3 4M11 4l3 4-3 4"/>',
+  flag: '<path d="M3.5 14V2.5M3.5 3h8l-1.5 3 1.5 3h-8"/>',
+  pen: '<path d="M10.5 2.5l3 3-7.5 7.5H3v-3z"/>',
+  dl: '<path d="M8 2.5v8M4.5 7L8 10.5 11.5 7M3 13.5h10"/>',
 };
-const LABEL = { frozen: 'Frozen', established: 'Established', 'source-observed': 'Source observed', candidate: 'Candidate', preserved: 'Preserved', missing: 'Missing', intentional_change: 'Intentional change', uncertain: 'Uncertain', untested: 'Untested', satisfied: 'Satisfied', not_satisfied: 'Not satisfied', unverified: 'Unverified', verified_candidate: 'Verified candidate', unresolved: 'Unresolved', cancelled: 'Cancelled', did_not_pass: 'Did not pass', passed: 'Passed', infra_error: 'Infrastructure error' };
-const glyphFor = (s) => ['frozen','established'].includes(s) ? 'ok' : ['preserved','satisfied','passed','verified_candidate','verified'].includes(s) ? 'ok' : ['missing','not_satisfied','unresolved','rejected_protected','rejected_paths','gate_failed','reverify_failed'].includes(s) ? 'miss' : s === 'intentional_change' ? 'chg' : ['untested','queued'].includes(s) ? 'unt' : 'unc';
-const badge = (s) => h('span', { class: `badge b-${s}` }, svg(GLYPH[glyphFor(s)]), LABEL[s] || s.replace(/_/g, ' '));
+const LABEL = { frozen: 'Frozen', established: 'Established', 'source-observed': 'Source observed', candidate: 'Candidate', preserved: 'Preserved', missing: 'Missing', intentional_change: 'Intentional change', uncertain: 'Uncertain', untested: 'Untested', satisfied: 'Satisfied', not_satisfied: 'Not satisfied', unverified: 'Unverified', verified_candidate: 'Verified candidate', verified: 'Verified', unresolved: 'Unresolved', cancelled: 'Cancelled', did_not_pass: 'Did not pass', passed: 'Passed', infra_error: 'Infrastructure error', rejected_protected: 'Rejected: protected files', rejected_paths: 'Rejected: outside allowed paths', gate_failed: 'Build gate failed', reverify_failed: 'Re-verify failed', regression_failed: 'Broke other behaviour', no_patch: 'No patch', agent_unavailable: 'Agent unavailable', patching: 'Agent working', verifying: 'Re-verifying', regression_checking: 'Regression check', building: 'Building', retrying: 'Retrying', queued: 'Queued' };
+const glyphFor = (s) => ['frozen', 'established', 'preserved', 'satisfied', 'passed', 'verified_candidate', 'verified'].includes(s) ? 'ok' : ['missing', 'not_satisfied', 'unresolved', 'rejected_protected', 'rejected_paths', 'gate_failed', 'reverify_failed', 'regression_failed'].includes(s) ? 'miss' : s === 'intentional_change' ? 'chg' : ['untested', 'queued', 'candidate'].includes(s) ? 'unt' : 'unc';
+const badge = (s) => h('span', { class: `badge b-${s}` }, svg(GLYPH[glyphFor(s)]), LABEL[s] || String(s).replace(/_/g, ' '));
 const short = (x, n = 8) => (x ? String(x).slice(0, n) : '—');
-const time = (t) => (t ? new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '');
+const time = (t) => (t ? new Date(t).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '');
+const clock = (t) => (t ? new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '');
+const credits = (n) => (n == null ? '—' : Number(n).toFixed(2));
 const SNAP = window.RECAST_SNAPSHOT || null;
-/** In a static snapshot, API paths map to baked JSON files. */
+const REPO = 'https://github.com/gsoffmarket/recast';
 const dataPath = (p) => {
   if (!SNAP) return p;
-  if (p === '/api/report.md') return 'data/report.md';
+  if (/^\/api\/report\.(md|csv|json)$/.test(p)) return p.replace('/api/', 'data/');
   let m = p.match(/^\/api\/(runs|tasks)\/([0-9a-f-]{36})\/events$/); if (m) return `data/${m[1]}/${m[2]}/events.json`;
+  m = p.match(/^\/api\/runs\/([0-9a-f-]{36})\/shots\/(.+)$/); if (m) return `data/runs/${m[1]}/shots/${m[2]}`;
   m = p.match(/^\/api\/requirements\/(.+)$/); if (m) return `data/requirements/${m[1]}.json`;
   m = p.match(/^\/api\/tasks\/([0-9a-f-]{36})$/); if (m) return `data/tasks/${m[1]}.json`;
   return `data/${p.replace(/^\/api\//, '')}.json`;
 };
-const api = (p) => fetch(dataPath(p), { cache: 'no-store' }).then((r) => { if (!r.ok) throw new Error(`${p} → ${r.status}`); return r.json(); });
-let streams = [];
-const closeStreams = () => { streams.forEach((s) => s.close()); streams = []; };
+const api = (p) => fetch(dataPath(p), { cache: 'no-store' }).then((r) => { if (r.status === 404) { const e = new Error('not found'); e.code = 404; throw e; } if (!r.ok) throw new Error(`${p} → ${r.status}`); return r.json(); });
+const page = () => $('#page');
+const prov = (cls, text) => h('span', { class: `prov ${cls}` }, h('i'), text);
 
 function copyBtn(text) {
   return h('button', { class: 'btn', type: 'button', onclick: async (e) => { try { await navigator.clipboard.writeText(text); e.target.textContent = 'Copied'; } catch { e.target.textContent = 'Select and copy'; } setTimeout(() => (e.target.textContent = 'Copy'), 1500); } }, 'Copy');
 }
 const cmd = (text) => h('div', { class: 'cmd' }, h('code', {}, text), copyBtn(text));
 
+function lightbox(src, caption) {
+  const close = () => box.remove();
+  const box = h('div', { class: 'lightbox', role: 'dialog', 'aria-modal': 'true', 'aria-label': caption, onclick: close },
+    h('div', {}, h('img', { src, alt: caption }), h('div', { class: 'cap' }, caption, h('div', { class: 'muted', style: 'margin-top:6px;font-size:12px' }, 'Click anywhere or press Esc to close'))));
+  const onKey = (e) => { if (e.key === 'Escape') { close(); removeEventListener('keydown', onKey); } };
+  addEventListener('keydown', onKey);
+  document.body.append(box);
+}
+
 // ---------- shell ----------
-async function frame(view) {
-  const o = await api('/api/overview');
-  $('#crumb').replaceChildren('Projects / ', h('b', {}, o.project));
-  $('#envs').replaceChildren(...[...o.environments].sort((a, b) => ['source','target','candidate'].indexOf(a.kind) - ['source','target','candidate'].indexOf(b.kind)).map((e) => h('span', { class: `env ${e.kind}`, title: e.url }, h('i'), `${e.kind} · ${e.name}${e.version ? ' · ' + e.version : ''}`)));
-  $('#credits').textContent = SNAP ? `Snapshot · ${new Date(SNAP.generatedAt).toLocaleString()}` : (o.lastKnownBalance != null ? `Kane credits ${o.lastKnownBalance.toFixed(2)}` : 'Kane credits unknown');
-  if (SNAP) $('#mode').textContent = 'Recorded results from real local runs · read-only';
-  document.querySelectorAll('.nav a').forEach((a) => a.setAttribute('aria-current', a.dataset.view === view ? 'page' : 'false'));
+let overviewCache = null;
+async function shell(view) {
+  if (!overviewCache) overviewCache = await api('/api/overview');
+  const o = overviewCache;
+  document.querySelectorAll('.bar nav a').forEach((a) => a.setAttribute('aria-current', a.dataset.view === view ? 'page' : 'false'));
+  $('#snap').textContent = SNAP ? `Recorded results · ${time(SNAP.generatedAt)}` : (o.lastKnownBalance != null ? `Local · Kane credits ${credits(o.lastKnownBalance)}` : 'Local');
   return o;
 }
+function loading() {
+  page().replaceChildren(h('div', { class: 'skeleton', style: 'height:44px;width:40%' }), h('div', { class: 'skeleton', style: 'height:120px' }), h('div', { class: 'skeleton', style: 'height:280px' }));
+}
+function errorView(e) {
+  if (e && e.code === 404) return notFound();
+  page().replaceChildren(h('div', { class: 'panel empty' }, h('h3', {}, 'Could not load this view'), String(e?.message || e),
+    SNAP ? h('p', {}, 'The snapshot is missing this data. Try the home page.') : h('p', {}, 'Check that Postgres is running (docker-compose up -d) and the project exists (pnpm recast init).')));
+}
+function notFound() {
+  page().replaceChildren(h('div', { class: 'notfound' }, h('div', { class: 'big' }, '404'), h('h1', {}, 'Nothing recorded here'), h('p', { class: 'lede' }, 'That requirement or page does not exist in this project.'), h('a', { class: 'btn-line', href: '#/parity' }, 'Back to requirements')));
+}
 
-// ---------- parity ----------
-let filter = 'all';
-async function parityView(selected) {
-  const o = await frame('parity');
+// ---------- landing ----------
+async function landing() {
+  const o = await shell('landing');
   const r = o.report, s = r.scope;
+  const byId = Object.fromEntries(r.rows.map((x) => [x.requirement_id, x]));
+  const seam = h('div', { class: 'seam', 'aria-hidden': 'true', html: '' });
+  seam.innerHTML = '<svg viewBox="0 0 420 300"><rect x="0" y="40" width="130" height="220" rx="24" fill="#15846e"/><g fill="#9a9a9a">' + Array.from({ length: 12 }, (_, i) => `<circle cx="172" cy="${52 + i * 18}" r="1.6"/><circle cx="196" cy="${52 + i * 18}" r="1.6"/>`).join('') + '</g><rect x="236" y="0" width="184" height="210" rx="24" fill="#8052ff"/><rect x="236" y="230" width="96" height="48" rx="24" fill="#ffb829"/></svg>';
+  const card = (id, title, desc) => { const x = byId[id]; return x ? h('a', { class: 'result', href: `#/requirements/${id}` }, badge(x.result), h('div', { class: 'n' }, title), h('div', { class: 'sec', style: 'font-size:13.5px' }, desc), h('span', { class: 'id' }, `${id} →`)) : null; };
+  page().replaceChildren(
+    h('section', { class: 'hero' },
+      h('div', {}, h('div', { class: 'eyebrow' }, 'Behaviour parity for UI migrations'), h('h1', {}, 'Rebuild the software. Keep the behaviour.'),
+        h('p', { class: 'lede' }, 'Recast uses Kane CLI to observe a legacy web app, freezes what it does into hashed requirements, finds what the replacement UI lost, has a coding agent fix it, and accepts the fix only when Kane and the app\'s own API prove it.'),
+        h('div', { class: 'cta' }, h('a', { class: 'btn-primary', href: '#/parity' }, 'See the results'), h('a', { class: 'btn-line', href: REPO, target: '_blank', rel: 'noopener' }, 'GitHub'))),
+      seam),
+    h('section', { style: 'display:grid;gap:14px' }, h('div', { class: 'eyebrow' }, 'Real case: Trino 481, classic UI → new preview UI'),
+      h('div', { class: 'results' },
+        card('REQ-QRY-CANCEL', byId['REQ-QRY-CANCEL']?.patch_sha ? 'Lost, then fixed' : 'Cancel was lost', byId['REQ-QRY-CANCEL']?.patch_sha ? 'Kill a running query was missing in the new UI. Claude Code wrote a fix from evidence alone, and Kane proved it 2 of 2 with no regressions.' : 'Kill a running query works in the classic UI and is missing in the new one: 2 of 2 runs, confirmed by Trino\'s API.'),
+        card('REQ-QRY-PREEMPT', 'Kane found a second gap', 'Kane Exploration discovered the Preempt control on its own. The new UI lacks it too.'),
+        card('REQ-QRY-OWNER', 'No false alarms', 'Seeing who ran a query works in both UIs with different layouts, so Recast says Preserved.'))),
+    h('section', { style: 'display:grid;gap:14px' }, h('div', { class: 'eyebrow' }, 'How it works'),
+      h('div', { class: 'steps5' },
+        h('div', {}, h('b', {}, '1 · Observe'), h('span', {}, 'Kane explores the legacy app and maps its screens, controls and flows.')),
+        h('div', {}, h('b', {}, '2 · Freeze'), h('span', {}, 'Two matching runs establish a requirement; a hash locks it.')),
+        h('div', {}, h('b', {}, '3 · Compare'), h('span', {}, 'Same intent on the new UI; the oracle decides, not the test agent.')),
+        h('div', {}, h('b', {}, '4 · Repair'), h('span', {}, 'A coding agent fixes the gap in a sealed copy, from evidence only.')),
+        h('div', {}, h('b', {}, '5 · Prove'), h('span', {}, 'Kane re-runs the frozen requirement plus a regression check.')))),
+    h('section', { class: 'stats' },
+      h('div', { class: 'stat' }, h('div', { class: 'v' }, `${s.verified} / ${s.frozen}`), h('div', { class: 'k' }, 'frozen requirements verified')),
+      h('div', { class: 'stat' }, h('div', { class: 'v' }, String(s.missing)), h('div', { class: 'k' }, 'confirmed gaps')),
+      h('div', { class: 'stat' }, h('div', { class: 'v' }, String(s.fixesVerified || 0)), h('div', { class: 'k' }, 'agent fixes verified by Kane')),
+      h('div', { class: 'stat' }, h('div', { class: 'v' }, String(r.runs.total)), h('div', { class: 'k' }, 'real Kane runs recorded')),
+      h('div', { class: 'stat' }, h('div', { class: 'v' }, String(r.discovery.candidates)), h('div', { class: 'k' }, 'candidates Kane discovered'))),
+    h('p', { class: 'muted', style: 'font-size:12.5px' }, `Read-only snapshot of real local runs (Kane CLI ${r.versions.kaneCli ?? ''}, trinodb/trino:481). Reproduce it with the commands in the README.`),
+  );
+}
+
+// ---------- home ----------
+function trendChart(hist, reqIds) {
+  if (!hist.length) return h('p', { class: 'muted' }, 'No comparisons yet.');
+  const latest = {}; const points = [];
+  for (const e of hist) { latest[e.requirement_id] = e.status; const vals = Object.values(latest); points.push({ t: new Date(e.created_at).getTime(), v: vals.filter((x) => x === 'preserved' || x === 'intentional_change').length, m: vals.filter((x) => x === 'missing').length }); }
+  const W = 560, H = 140, P = 24, t0 = points[0].t, t1 = Math.max(points.at(-1).t, t0 + 1), max = Math.max(1, reqIds.length);
+  const x = (t) => P + (W - 2 * P) * (t - t0) / (t1 - t0), y = (v) => H - P - (H - 2 * P) * v / max;
+  const path = (k) => points.map((p, i) => `${i ? 'L' : 'M'}${x(p.t).toFixed(1)},${y(p[k]).toFixed(1)}${i < points.length - 1 ? `H${x(points[i + 1].t).toFixed(1)}` : ''}`).join('');
+  const el = h('div', { class: 'trend' });
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Verified and missing requirements over time"><line x1="${P}" x2="${W - P}" y1="${H - P}" y2="${H - P}" stroke="rgba(255,255,255,.12)"/><path d="${path('m')}" fill="none" stroke="#ff9592" stroke-width="2"/><path d="${path('v')}" fill="none" stroke="#3dd68c" stroke-width="2"/><circle cx="${x(points.at(-1).t)}" cy="${y(points.at(-1).v)}" r="3.5" fill="#3dd68c"/><circle cx="${x(points.at(-1).t)}" cy="${y(points.at(-1).m)}" r="3.5" fill="#ff9592"/><text x="${P}" y="14" fill="#9a9a9a" font-size="11" font-family="Geist Mono, monospace">verified (green) · missing (red) · ${max} in scope</text></svg>`;
+  return el;
+}
+
+let filter = 'all';
+async function home() {
+  const o = await shell('parity');
+  const r = o.report, s = r.scope;
+  const hist = await api('/api/history').catch(() => []);
   const rows = r.rows.filter((x) => filter === 'all' || x.result === filter);
-  const sel = selected || (r.rows[0] && r.rows[0].requirement_id);
-  const counts = [['all', 'All', s.frozen], ['preserved', 'Preserved', s.verified - s.intentional], ['missing', 'Missing', s.missing], ['intentional_change', 'Intentional', s.intentional], ['uncertain', 'Uncertain', s.uncertain], ['untested', 'Untested', s.untested]];
-  const view = $('#view');
-  view.replaceChildren(
-    h('div', {}, h('div', { class: 'eyebrow' }, 'Scoped acceptance'), h('h1', {}, 'Parity'), h('p', { class: 'lede' }, 'Each row is a frozen requirement. Results come from Recast\'s oracle and classifier; Kane performs the steps and its own verdict is kept as evidence only.')),
-    h('div', { class: 'summary' }, h('span', { class: 'big' }, `${s.verified} of ${s.frozen}`), h('span', { class: 'sec' }, `frozen in-scope requirements verified${s.notFrozen ? ` · ${s.notFrozen} not yet frozen` : ''}`)),
-    h('div', { class: 'chips', role: 'toolbar', 'aria-label': 'Filter by result' }, counts.map(([k, l, n]) => h('button', { class: 'chip', type: 'button', 'aria-pressed': String(filter === k), onclick: () => { filter = k; parityView(sel); } }, l, h('b', {}, n)))),
-    rows.length ? h('div', { class: 'panel' }, h('div', { class: 'tbl-wrap' }, h('table', {},
-      h('thead', {}, h('tr', {}, ['Requirement', 'Objective', 'Target', 'Actual', 'Result', 'Evidence'].map((c) => h('th', { scope: 'col' }, c)))),
-      h('tbody', {}, rows.map((x) => h('tr', { class: 'sel', 'aria-selected': String(x.requirement_id === sel), tabindex: '0', onclick: () => parityView(x.requirement_id), onkeydown: (e) => { if (e.key === 'Enter') parityView(x.requirement_id); } },
-        h('td', { class: 'id' }, `${x.requirement_id} r${x.revision}`), h('td', { style: 'min-width:220px' }, x.objective), h('td', { class: 'id' }, x.target || '—'), h('td', { class: 'id', style: 'white-space:normal;min-width:180px;max-width:260px' }, x.actual || '—'), h('td', {}, badge(x.result)), h('td', { class: 'id' }, `${(x.source_run_ids.split(' ').filter(Boolean).length)} src · ${(x.target_run_ids.split(' ').filter(Boolean).length)} tgt`))))))) : h('div', { class: 'panel empty' }, h('h3', {}, 'No frozen requirements match'), 'Freeze a requirement with recast freeze, then run recast compare.'),
-    h('div', { id: 'detail' }),
+  const counts = [['all', 'All', s.frozen], ['missing', 'Missing', s.missing], ['preserved', 'Preserved', s.verified - s.intentional], ['uncertain', 'Uncertain', s.uncertain], ['untested', 'Untested', s.untested]];
+  const totalCredits = r.runs.creditsByBalance;
+  page().replaceChildren(
+    h('div', {}, h('div', { class: 'eyebrow' }, 'Scoped acceptance'), h('h1', {}, 'Requirements'), h('p', { class: 'lede' }, 'Each row is a frozen requirement: behaviour observed in the legacy UI and locked with a hash. Results come from the app\'s own API, not from the test agent\'s opinion.')),
+    h('div', { class: 'exec' },
+      h('div', { class: 'panel' }, h('div', { class: 'body', style: 'display:grid;gap:14px' },
+        h('div', { class: 'summary' }, h('span', { class: 'big' }, `${s.verified} of ${s.frozen}`), h('span', { class: 'sec' }, 'frozen in-scope requirements verified')),
+        h('p', { class: 'sec', style: 'margin:0;font-size:13.5px' }, s.missing ? `${s.missing} confirmed gap${s.missing > 1 ? 's' : ''} in the new UI${s.fixesVerified ? `; ${s.fixesVerified} already ${s.fixesVerified > 1 ? 'have' : 'has'} an agent fix verified by Kane, awaiting review` : ''}. ${s.untested ? `${s.untested} untested.` : ''}` : 'No confirmed gaps.'),
+        h('div', { class: 'stats' },
+          h('div', { class: 'stat' }, h('div', { class: 'v' }, String(r.runs.total)), h('div', { class: 'k' }, 'Kane runs')),
+          h('div', { class: 'stat' }, h('div', { class: 'v' }, credits(totalCredits)), h('div', { class: 'k' }, 'credits spent')),
+          h('div', { class: 'stat' }, h('div', { class: 'v' }, String(r.tasks.length)), h('div', { class: 'k' }, 'repair tasks'))))),
+      h('div', { class: 'panel' }, h('div', { class: 'head' }, h('h2', {}, 'Over time')), h('div', { class: 'body' }, trendChart(hist, r.rows.map((x) => x.requirement_id))))),
+    h('div', { class: 'chips', role: 'toolbar', 'aria-label': 'Filter by result' }, counts.map(([k, l, n]) => h('button', { class: 'chip', type: 'button', 'aria-pressed': String(filter === k), onclick: () => { filter = k; home(); } }, l, h('b', {}, n)))),
+    rows.length ? h('div', { class: 'req-list' }, rows.map((x) => h('a', { class: 'req-card', href: `#/requirements/${x.requirement_id}` },
+      h('div', { style: 'display:grid;gap:6px;min-width:0' }, h('div', { class: 't' }, x.objective), h('div', { class: 'meta' }, h('span', {}, `${x.requirement_id} r${x.revision}`), h('span', {}, x.target || 'no target run yet'), x.patch_sha ? h('span', { style: 'color:var(--ok)' }, `verified fix ${short(x.patch_sha, 10)}`) : null)),
+      h('div', { class: 'chipline', style: 'justify-content:flex-end' }, badge(x.result), x.patch_sha ? h('span', { class: 'badge b-verified' }, svg(GLYPH.code), 'Fix verified') : null)))) : h('div', { class: 'panel empty' }, h('h3', {}, filter === 'all' ? 'No frozen requirements yet' : 'Nothing matches this filter'), filter === 'all' ? h('div', { style: 'max-width:560px;margin:12px auto 0;display:grid;gap:8px' }, cmd('pnpm recast discover run --max-leases 8'), cmd('pnpm recast baseline --requirement <ID> --runs 2')) : null),
+    r.discovery.candidates ? h('a', { class: 'req-card', href: '#/discovery' }, h('div', {}, h('div', { class: 't' }, `Kane Exploration found ${r.discovery.candidates} candidate requirements`), h('div', { class: 'meta' }, h('span', {}, `${r.discovery.screens} screens · ${r.discovery.flows} flows · ${r.discovery.linked.length} covered by requirements`))), h('span', { class: 'prov kane' }, h('i'), 'Open discovery')) : null,
   );
-  if (sel) requirementDetail(sel);
 }
 
-async function requirementDetail(id) {
-  const d = await api(`/api/requirements/${encodeURIComponent(id)}`);
-  const latest = d.parity[0];
-  const src = d.runs.filter((r) => r.kind === 'baseline' && r.state === 'completed');
-  const tgtIds = new Set(latest?.decision?.targetRuns || []);
-  const tgt = d.runs.filter((r) => tgtIds.has(r.id));
-  const side = (title, kind, runs, envName) => {
-    const last = runs[runs.length - 1];
-    return h('section', { class: 'side-card', 'aria-label': title },
-      h('div', { class: 'h' }, h('span', { class: `env ${kind}` }, h('i'), `${kind} · ${envName || '—'}`), last ? badge(last.verdict || last.state) : badge('untested')),
-      last ? h('dl', { class: 'kv' },
-        ...Object.entries(last.observed || {}).flatMap(([k, v]) => [h('dt', {}, k), h('dd', {}, JSON.stringify(v))]),
-        h('dt', {}, 'runs'), h('dd', {}, runs.map((r) => `${short(r.id)} ${LABEL[r.verdict] || r.verdict || r.state}`).join(' · ')),
-        h('dt', {}, 'query'), h('dd', {}, last.fixture_ref || '—'),
-        ...(last.candidate_sha ? [h('dt', {}, 'candidate'), h('dd', {}, short(last.candidate_sha, 12))] : []),
-        h('dt', {}, 'credits'), h('dd', {}, runs.map((r) => r.credits != null ? r.credits.toFixed(2) : '?').join(' + ')),
-        h('dt', {}, 'evidence'), h('dd', {}, runs.map((r) => r.evidence_sha256 ? 'sha256:' + short(r.evidence_sha256, 12) : 'unavailable').join(' · ')),
-      ) : h('p', { class: 'muted' }, 'No qualifying run.'),
-      last?.kane_said ? h('blockquote', { class: 'kane' }, h('b', {}, `Kane said (${last.kane_outcome}${last.kane_category ? ', ' + last.kane_category.replace(/_/g, ' ') : ''})`), last.kane_said) : null,
-      last?.failed_step ? h('blockquote', { class: 'kane' }, h('b', {}, 'Failing step'), last.failed_step) : null,
-      runs.length ? h('button', { class: 'btn', type: 'button', onclick: () => openRun(last.id, title) }, 'Open run timeline') : null,
-    );
-  };
-  const vclass = latest?.status === 'missing' ? 'missing' : latest?.status === 'preserved' ? 'preserved' : 'other';
-  $('#detail').replaceChildren(h('div', { class: 'grid2' },
-    h('div', { style: 'display:grid;gap:12px;min-width:0' },
-      latest ? h('div', { class: `verdict ${vclass}` }, svg(GLYPH[glyphFor(latest.status)]), h('div', {}, h('strong', { style: 'font-weight:500' }, `${LABEL[latest.status]}. `), latest.explanation, h('div', { class: 'muted mono', style: 'margin-top:6px;font-size:12px' }, `${latest.reason_code} · ${time(latest.created_at)}`))) : null,
-      h('div', { class: 'compare' }, side('Source', 'source', src, src[0]?.environment), side('Target', tgt[0]?.env_kind || 'target', tgt, tgt[0]?.environment)),
-      h('div', { class: 'panel' }, h('div', { class: 'head' }, h('h2', {}, `${d.requirement.id} r${d.requirement.revision}`), badge(d.lifecycle)),
-        h('div', { class: 'body' }, h('dl', { class: 'kv' },
-          h('dt', {}, 'intent'), h('dd', { style: 'font-family:var(--font-sans);font-size:13px' }, d.requirement.action_intent),
-          h('dt', {}, 'assertions'), h('dd', {}, d.requirement.assertions.map((a) => `${a.path} ${a.operator} ${JSON.stringify(a.expected)}`).join(' ∧ ')),
-          h('dt', {}, 'oracle'), h('dd', {}, `${d.requirement.oracle}, settle ${d.requirement.settle_ms} ms`),
-          h('dt', {}, 'lifecycle'), h('dd', {}, `${d.lifecycle}${d.frozenAt ? ' · frozen ' + new Date(d.frozenAt).toLocaleString() : ''}`),
-          h('dt', {}, 'hash'), h('dd', {}, d.hash)),
-          h('div', { style: 'margin-top:12px;display:grid;gap:8px' }, latest?.status === 'missing' ? cmd(`pnpm recast repair --requirement ${d.requirement.id}`) : cmd(`pnpm recast compare --requirement ${d.requirement.id} --target trino-preview`)))),
-    ),
-    h('div', { class: 'panel' }, h('div', { class: 'head' }, h('h2', { id: 'tl-title' }, 'Run timeline'), h('span', { class: 'muted', style: 'font-size:12px' }, 'persisted events')), h('div', { class: 'body' }, h('ol', { class: 'timeline', id: 'timeline' }, h('li', { class: 'muted' }, 'Select a run.')))),
-  ));
-  const pick = tgt[tgt.length - 1] || src[src.length - 1];
-  if (pick) openRun(pick.id, tgt.length ? 'Target' : 'Source');
+// ---------- requirement story ----------
+function whyBox(d) {
+  const latest = d.parity.find((p) => !p.decision?.candidateSha);
+  if (!latest) return h('div', { class: 'why' }, h('strong', {}, 'Untested.'), h('span', { class: 'sec' }, 'No comparison has run for this revision yet.'));
+  const dec = latest.decision || {};
+  const asserts = d.requirement.assertions.map((a) => `${a.path} ${a.operator} ${JSON.stringify(a.expected)}`);
+  const rule = { REPRODUCIBLE_MISMATCH: 'At least two target runs failed the same assertions under valid conditions.', ALL_ASSERTIONS_PASS: 'Every target run satisfied every assertion.', CONTRADICTORY_TARGET_RUNS: 'Target runs disagreed, so it stays uncertain.', NOT_ENOUGH_TARGET_RUNS: 'Only one failing run; a gap needs two.', UNVERIFIED_OBSERVATIONS: 'A run lacked a valid execution or an observation.' }[latest.reason_code] || latest.reason_code;
+  return h('div', { class: 'why' },
+    h('div', {}, h('strong', { style: 'font-weight:500' }, `${LABEL[latest.status]}. `), latest.explanation),
+    h('details', {}, h('summary', {}, 'Why? How this was decided'),
+      h('ul', {}, h('li', {}, `Rule: ${rule}`), h('li', {}, `Assertions checked: ${asserts.join(' and ')}`), h('li', {}, `Oracle: ${d.requirement.oracle} (the app's own API), settle ${d.requirement.settle_ms} ms`),
+        h('li', {}, `Runs counted: ${(dec.sourceRuns || []).length} source, ${(dec.targetRuns || []).length} target (comparator ${dec.comparatorVersion || '—'})`), h('li', {}, 'Kane\'s own pass/fail is recorded as evidence and is not an input to this decision.'))));
 }
 
-function eventRow(e, live) {
-  const p = e.payload || {};
-  const map = {
-    'run.started': ['Run started', `${p.kind} · ${p.environment} · trino ${p.fingerprint?.version ?? '?'}${p.candidateSha ? ' · candidate ' + short(p.candidateSha, 10) : ''}`, ''],
-    'fixture.ready': ['Fresh query running', p.queryId, 'ok'],
-    'kane.invoked': ['Kane started', p.startUrl, ''],
-    'kane.step': [p.remark || `step ${p.step}`, `step ${p.step} · ${p.status}`, p.status === 'failed' ? 'fail' : ''],
-    'kane.run_end': [`Kane finished: ${p.status}`, p.one_liner || p.reason || '', p.status === 'passed' ? 'ok' : 'warn'],
-    'oracle.observed': ['Oracle observed', Object.entries(p.values || {}).map(([k, v]) => `${k}=${v}`).join(' '), ''],
-    'fixture.cleanup': ['Leftover query cancelled via REST', `HTTP ${p.restStatus}`, ''],
-    'evidence.recorded': ['Evidence pack recorded', `sha256:${short(p.sha256, 16)} · ${p.entries} files`, 'ok'],
-    'run.evaluated': [`Recast verdict: ${LABEL[p.verdict] || p.verdict}`, (p.assertions || []).map((a) => `${a.path} ${a.outcome}`).join(' · '), p.verdict === 'satisfied' ? 'ok' : p.verdict === 'not_satisfied' ? 'fail' : 'warn'],
-    'run.failed': ['Run failed', p.error, 'fail'],
-    'task.created': ['Repair task created', `${p.requirement} r${p.revision}`, ''],
-    'attempt.started': [`Attempt ${p.attempt} started`, `${p.branch} @ ${short(p.baseSha, 10)}`, ''],
-    'agent.finished': [`Agent finished (${p.toolUses} tool calls)`, (p.summary || '').slice(0, 220), p.isError ? 'warn' : ''],
-    'agent.unavailable': ['Agent unavailable', p.reason, 'warn'],
-    'patch.collected': [`Patch: ${(p.changed || []).length} file(s)`, (p.changed || []).map((c) => c.split('/').pop()).join(', '), (p.disallowed || []).length ? 'fail' : ''],
-    'gate.finished': [`Build gate ${p.ok ? 'passed' : 'failed'}`, (p.steps || []).map((s) => `${s.name} ${s.ok ? 'ok' : 'FAIL'}`).join(' · '), p.ok ? 'ok' : 'fail'],
-    'candidate.committed': ['Candidate committed', `${short(p.candidateSha, 12)} on ${p.branch}`, 'ok'],
-    'reverify.classified': [`Re-verify: ${LABEL[p.status] || p.status}`, p.explanation, p.status === 'preserved' ? 'ok' : 'fail'],
-    'task.verified': ['Verified candidate', `${short(p.candidateSha, 12)} on ${p.branch}`, 'ok'],
-    'task.unresolved': ['Unresolved', `${p.attempts} attempts used`, 'fail'],
-    'task.cancelled': ['Task cancelled', p.reason, 'warn'],
-    'attempt.rejected': ['Attempt rejected', p.reason, 'fail'],
-  };
-  if (e.type === 'kane.unknown' || e.type === 'kane.stream_start' || e.type === 'kane.session') return null;
-  const [t, m, cls] = map[e.type] || [e.type, JSON.stringify(p).slice(0, 160), ''];
-  const icon = cls === 'ok' ? '<path d="M2.5 6.2l2.2 2.2 4.8-5"/>' : cls === 'fail' ? '<path d="M3.5 3.5l5 5M8.5 3.5l-5 5"/>' : cls === 'warn' ? '<path d="M6 3v4M6 9h.01"/>' : '<circle cx="6" cy="6" r="1.5" fill="currentColor"/>';
-  return h('li', { class: `ev ${live ? 'live' : cls}` }, h('span', { class: 'dot' }, svg(icon, '0 0 12 12')), h('div', {}, h('div', { class: 't' }, t), m ? h('div', { class: 'm' }, m) : null), h('span', { class: 'tm' }, time(e.at)));
+function lifeItem(cls, icon, title, sub, when, extra) {
+  return h('li', { class: cls }, h('span', { class: 'node' }, svg(GLYPH[icon] || GLYPH.unt)), h('div', {}, h('h3', {}, title), sub ? h('div', { class: 'sub' }, sub) : null, when ? h('div', { class: 'when' }, when) : null, extra || null));
 }
 
-function stream(url, list, onEnd) {
-  if (SNAP) {
-    fetch(dataPath(url), { cache: 'no-store' }).then((r) => r.json()).then((rows) => {
-      for (const e of rows) { const row = eventRow(e, false); if (row) list.append(row); }
-      onEnd && onEnd();
-    }).catch(() => list.append(h('li', { class: 'muted' }, 'Events unavailable in this snapshot.')));
-    return;
+function lifecycle(d) {
+  const items = [];
+  for (const x of d.discovered) items.push(lifeItem('kane', 'search', 'Discovered by Kane Exploration', `${x.title}. ${x.detail?.why || ''}`, `exploration ${short(x.exploration_id)} · ${time(x.imported_at)}`));
+  if (d.revisionInfo) items.push(lifeItem('', 'pen', `Requirement written (r${d.requirement.revision})`, d.requirement.action_intent.replace(/\s*Then read.*$/s, ''), time(d.revisionInfo.created_at)));
+  const base = d.runs.filter((r) => r.kind === 'baseline');
+  if (base.length) items.push(lifeItem(base.every((r) => r.verdict === 'satisfied') ? 'ok' : 'warn', 'play', `Baseline on the legacy UI: ${base.filter((r) => r.verdict === 'satisfied').length} of ${base.length} satisfied`, base.map((r) => Object.entries(r.observed || {}).filter(([k]) => k.startsWith('query.') || k.startsWith('ui.')).map(([k, v]) => `${k}=${v}`).join(' ')).filter(Boolean)[0] || '', `${base.map((r) => short(r.id)).join(' · ')}`));
+  if (d.frozenAt) items.push(lifeItem('ok', 'lock', 'Frozen', `Locked with ${d.hash.slice(0, 23)}…; edits are refused.`, time(d.frozenAt)));
+  const cmp = d.runs.filter((r) => r.kind === 'compare');
+  const tgtStatus = d.parity.find((p) => !p.decision?.candidateSha);
+  if (cmp.length) items.push(lifeItem(tgtStatus?.status === 'preserved' ? 'ok' : tgtStatus?.status === 'missing' ? 'fail' : 'warn', 'play', `Compared on the new UI: ${tgtStatus ? LABEL[tgtStatus.status] : 'pending'}`, tgtStatus?.explanation || '', cmp.map((r) => short(r.id)).join(' · ')));
+  for (const c of d.checks) items.push(lifeItem(c.as_expected ? 'ok' : 'fail', 'flag', `Candidate check: ${c.label}`, `${c.ref} → ${LABEL[c.status] || c.status} (expected ${c.expected})${c.regression ? `; regression ${(c.regression.checked || []).map((x) => `${x.requirementId} ${LABEL[x.status]}`).join(', ')}` : ''}. Operator check, not counted as parity.`, time(c.created_at)));
+  for (const t of d.tasks) {
+    items.push(lifeItem(t.state === 'verified_candidate' ? 'ok' : ['unresolved'].includes(t.state) ? 'fail' : ['cancelled'].includes(t.state) ? 'warn' : 'live', 'code', `Repair task ${short(t.id)}: ${LABEL[t.state] || t.state}`, `${t.attempts.length} of ${t.max_attempts} attempts`, time(t.created_at),
+      h('div', { style: 'display:grid;gap:6px;margin-top:8px' }, t.attempts.map((a) => h('div', { class: 'step', style: 'grid-template-columns:auto minmax(0,1fr) auto' }, h('span', { class: 'id' }, `#${a.attempt}`), h('span', { class: 's' }, h('b', {}, a.agent || 'agent'), ` · ${(a.changed_paths || []).map((p) => p.split('/').pop()).join(', ') || 'no files'}${a.gate ? ` · gate ${a.gate.ok ? 'ok' : 'failed'}` : ''}${a.candidate_sha ? ` · ${short(a.candidate_sha, 10)}` : ''}`), badge(a.state))))));
   }
-  const es = new EventSource(url);
-  streams.push(es);
-  const add = (msg) => { const e = JSON.parse(msg.data); const row = eventRow(e, false); if (!row) return; list.querySelectorAll('.ev.live').forEach((x) => x.classList.remove('live')); row.classList.add('live'); list.append(row); list.scrollTop = list.scrollHeight - list.clientHeight < 80 ? list.scrollHeight : list.scrollTop; };
-  es.addEventListener('run', add); es.addEventListener('task', add);
-  es.addEventListener('end', () => { list.querySelectorAll('.ev.live').forEach((x) => x.classList.remove('live')); es.close(); onEnd && onEnd(); });
+  const latest = d.parity.find((p) => p.decision?.candidateSha);
+  if (latest) items.push(lifeItem(latest.status === 'preserved' ? 'ok' : 'fail', latest.status === 'preserved' ? 'ok' : 'miss', latest.status === 'preserved' ? 'Fix verified on the candidate (awaiting review)' : 'Candidate did not pass', latest.explanation, time(latest.created_at)));
+  return h('ol', { class: 'life' }, items);
 }
 
-function openRun(id, label) {
-  closeStreams();
-  const list = $('#timeline');
-  if (!list) return;
-  $('#tl-title').textContent = `${label} run ${short(id)}`;
-  list.replaceChildren();
-  stream(`/api/runs/${id}/events`, list);
+function stepList(run, label) {
+  if (!run) return h('div', { class: 'col' }, h('div', { class: 'h' }, h('h2', {}, label)), h('p', { class: 'muted' }, 'No run yet.'));
+  const meaningful = run.steps.filter((s) => (s.kind !== 'wait' || s.status === 'failed') && (s.summary.replace(/^[a-z_]+:\s*/i, '').trim() || s.status === 'failed'));
+  return h('div', { class: 'col' },
+    h('div', { class: 'h' }, h('div', {}, h('h2', {}, label), h('div', { class: 'id' }, `${run.environment} · run ${short(run.id)}${run.candidateSha ? ` · ${short(run.candidateSha, 10)}` : ''}`)), badge(run.verdict || run.state)),
+    meaningful.map((s) => h('div', { class: `step ${s.status === 'failed' ? 'failed' : ''}` }, h('span', { class: 'o' }, String(s.ordinal)), h('span', { class: 's' }, h('b', {}, s.kind), ' ', s.summary.replace(/^[a-z_]+:\s*/i, '').replace(/^(PRIMARY|HINTS):\s*/g, '').slice(0, 140)),
+      s.shot ? h('img', { class: 'thumb', loading: 'lazy', src: dataPath(`/api/runs/${run.id}/shots/${s.dir}.jpg`), alt: `${label} step ${s.ordinal}: ${s.summary}`, tabindex: '0', onclick: (e) => lightbox(e.target.src, `${label} · step ${s.ordinal} · ${s.summary}`), onkeydown: (e) => { if (e.key === 'Enter') lightbox(e.target.src, `${label} · step ${s.ordinal}`); } }) : h('span'))),
+    h('dl', { class: 'kv', style: 'margin-top:6px' }, ...Object.entries(run.observed || {}).flatMap(([k, v]) => [h('dt', {}, k), h('dd', {}, JSON.stringify(v))]), h('dt', {}, 'credits'), h('dd', {}, credits(run.credits))),
+    run.kaneSaid ? h('blockquote', { class: 'kane' }, h('b', {}, `Kane said: ${run.kaneSaid.status}${run.kaneSaid.category ? ` (${run.kaneSaid.category.replace(/_/g, ' ')})` : ''}`), run.kaneSaid.oneLiner || '') : null);
 }
 
-// ---------- discovery ----------
-async function discoveryView() {
-  await frame('discovery');
-  const d = await api('/api/discovery');
-  const view = $('#view');
-  const head = h('div', {}, h('div', { class: 'eyebrow' }, 'Observe'), h('h1', {}, 'Discovery'), h('p', { class: 'lede' }, 'What Kane Exploration found in the source app. Discovery shows what exists, not what it does: a candidate becomes a requirement only after real baseline runs.'));
-  if (!d || !d.runs.length) { view.replaceChildren(head, h('div', { class: 'panel empty' }, h('h3', {}, 'No exploration imported yet'), 'Map the source app with Kane, then import it.', h('div', { style: 'max-width:520px;margin:16px auto 0' }, cmd('pnpm recast discover run --max-leases 8')))); return; }
-  const by = (k) => d.items.filter((i) => i.kind === k);
-  const r0 = d.runs[0];
-  const candStatus = (c) => c.linked_requirement ? h('span', { class: 'badge b-frozen' }, svg(GLYPH.ok), `→ ${c.linked_requirement}`) : badge('untested');
-  view.replaceChildren(head,
-    h('div', { class: 'summary' }, h('span', { class: 'big' }, String(by('candidate').length)), h('span', { class: 'sec' }, `candidate requirements from ${by('screen').length} screens and ${by('flow').length} flows · ${by('finding').length} findings · exploration ${short(r0.exploration_id)} on ${r0.environment}`)),
-    h('div', { class: 'panel' }, h('div', { class: 'head' }, h('h2', {}, 'Candidates'), h('span', { class: 'muted', style: 'font-size:12px' }, 'linked = covered by a requirement')),
-      h('div', { class: 'tbl-wrap' }, h('table', {}, h('thead', {}, h('tr', {}, ['Candidate', 'Where', 'Why', 'Status'].map((c) => h('th', { scope: 'col' }, c)))),
-        h('tbody', {}, by('candidate').map((c) => h('tr', {}, h('td', { style: 'min-width:180px' }, c.title), h('td', { class: 'id', style: 'white-space:normal' }, c.detail.screenUrl || '—'), h('td', { class: 'sec', style: 'white-space:normal;min-width:260px;max-width:460px' }, c.detail.why || ''), h('td', {}, candStatus(c)))))))),
-    h('div', { class: 'grid2' },
-      h('div', { class: 'panel' }, h('div', { class: 'head' }, h('h2', {}, 'Screens')), h('div', { class: 'body', style: 'display:grid;gap:12px' }, by('screen').map((x) => h('div', {}, h('div', {}, x.title), h('div', { class: 'id' }, x.key), h('div', { class: 'muted', style: 'font-size:12px;margin-top:4px' }, `${x.detail.controls.length} controls · ${x.detail.controls.filter((c) => c.scope === 'policy_blocked').map((c) => c.name).join(', ') || 'none'} not pressed by policy`))))),
-      h('div', { class: 'panel' }, h('div', { class: 'head' }, h('h2', {}, 'Verified flows')), h('div', { class: 'body', style: 'display:grid;gap:12px' }, by('flow').map((x) => h('div', {}, h('div', {}, x.title.trim() || '(unnamed)'), h('div', { class: 'muted', style: 'font-size:12px' }, (x.detail.steps || []).slice(0, 6).join(' → ') || x.detail.description || '')))))),
+function netCol(run) {
+  if (!run) return h('div', { class: 'net' }, '—');
+  return h('div', { class: 'net' }, run.network.length ? run.network.map((n) => h('div', { class: 'hit' }, `${n.method} ${n.path} → ${n.status}`)) : h('div', { class: 'none' }, 'No state-changing request sent'));
+}
+
+async function requirement(id) {
+  await shell('parity');
+  const d = await api(`/api/requirements/${encodeURIComponent(id)}`);
+  const latest = d.parity.find((p) => !p.decision?.candidateSha);
+  const fixP = d.parity.find((p) => p.decision?.candidateSha);
+  const c = d.compare;
+  const cols = c.candidate ? 3 : 2;
+  const verifiedAttempt = d.tasks.flatMap((t) => t.attempts).reverse().find((a) => a.state === 'verified') || d.tasks.flatMap((t) => t.attempts).reverse().find((a) => a.patch);
+  page().replaceChildren(
+    h('nav', { class: 'crumbs', 'aria-label': 'Breadcrumb' }, h('a', { href: '#/parity' }, 'Requirements'), h('span', {}, '/'), h('span', {}, d.requirement.id)),
+    h('header', { class: 'req-head' },
+      h('div', { class: 'chipline' }, latest ? badge(latest.status) : badge('untested'), fixP?.status === 'preserved' ? h('span', { class: 'badge b-verified' }, svg(GLYPH.code), `Fix verified · ${short(fixP.decision.candidateSha, 10)}`) : null, badge(d.lifecycle),
+        d.discovered.length ? prov('kane', 'Discovered by Kane') : prov('', 'Written from observed runs'), prov('oracle', `Oracle: ${d.requirement.oracle}`), d.checks.length ? prov('op', 'Operator check') : null, d.tasks.length ? prov('agent', 'Agent repair') : null),
+      h('h1', {}, d.requirement.objective), h('div', { class: 'id' }, `${d.requirement.id} r${d.requirement.revision} · ${d.hash}`), whyBox(d)),
+    h('div', { class: `story ${cols === 3 ? 'wide' : ''}` },
+      h('div', { style: 'display:grid;gap:24px;min-width:0' },
+        h('section', { class: 'cmpwrap', 'aria-label': 'Step by step comparison' },
+          h('h2', {}, 'Same intent, step by step'),
+          h('div', { class: 'cmp', style: `--cols:${cols}` }, stepList(c.source, 'Legacy UI'), stepList(c.target, 'New UI'), c.candidate ? stepList(c.candidate, 'Fixed candidate') : null),
+          h('h2', { style: 'margin-top:8px' }, 'What the page sent to the server'),
+          h('div', { class: 'netdiff', style: `--cols:${cols}` }, netCol(c.source), netCol(c.target), c.candidate ? netCol(c.candidate) : null)),
+        verifiedAttempt?.patch ? h('section', { 'aria-label': 'Patch' }, h('h2', { style: 'margin-bottom:10px' }, `Patch · attempt ${verifiedAttempt.attempt} · ${verifiedAttempt.agent}`), renderDiff(verifiedAttempt.patch), verifiedAttempt.agent_summary ? h('blockquote', { class: 'kane', style: 'margin-top:10px' }, h('b', {}, 'Agent said (not used to judge)'), verifiedAttempt.agent_summary.slice(0, 700)) : null) : null),
+      h('aside', { class: 'aside' },
+        h('div', { class: 'panel' }, h('div', { class: 'head' }, h('h2', {}, 'Lifecycle')), h('div', { class: 'body' }, lifecycle(d))),
+        h('div', { class: 'panel' }, h('div', { class: 'head' }, h('h2', {}, 'Cost')), h('div', { class: 'body' }, h('dl', { class: 'kv' },
+          h('dt', {}, 'Kane credits'), h('dd', {}, credits(d.cost.credits)), h('dt', {}, 'runs'), h('dd', {}, String(d.cost.runs)),
+          ...Object.entries(d.cost.byKind).filter(([, v]) => v).flatMap(([k, v]) => [h('dt', {}, k), h('dd', {}, credits(v))]),
+          d.cost.agentMs ? h('dt', {}, 'agent time') : null, d.cost.agentMs ? h('dd', {}, `${Math.round(d.cost.agentMs / 1000)} s`) : null))),
+        latest?.status === 'missing' && !SNAP ? h('div', { class: 'panel' }, h('div', { class: 'body', style: 'display:grid;gap:8px' }, h('div', { class: 'sec', style: 'font-size:13px' }, 'Next step'), cmd(`pnpm recast repair --requirement ${d.requirement.id}`))) : null)),
   );
 }
 
-// ---------- repair ----------
 function renderDiff(patch) {
-  if (!patch) return h('p', { class: 'muted' }, 'No patch.');
   const files = patch.split(/^diff --git /m).filter(Boolean);
   return h('div', { style: 'display:grid;gap:12px' }, files.map((f) => {
     const name = (f.match(/ b\/(\S+)/) || [])[1] || 'file';
     const body = f.split('\n').filter((l) => !/^(index |--- |\+\+\+ |new file|deleted file|similarity|rename )/.test(l)).slice(1);
-    return h('div', { class: 'diff' }, h('div', { class: 'file' }, name.split('/').slice(-3).join('/')),
-      h('pre', {}, body.map((l) => h('span', { class: `l ${l.startsWith('+') ? 'add' : l.startsWith('-') ? 'del' : l.startsWith('@@') ? 'hunk' : ''}` }, l || ' '))));
+    return h('div', { class: 'diff' }, h('div', { class: 'file' }, name.split('/').slice(-3).join('/')), h('pre', {}, body.map((l) => h('span', { class: `l ${l.startsWith('+') ? 'add' : l.startsWith('-') ? 'del' : l.startsWith('@@') ? 'hunk' : ''}` }, l || ' '))));
   }));
 }
 
-async function repairView(taskId) {
-  await frame('repair');
-  const tasks = await api('/api/tasks');
-  const view = $('#view');
-  const head = h('div', {}, h('div', { class: 'eyebrow' }, 'Migration'), h('h1', {}, 'Repair'), h('p', { class: 'lede' }, 'A confirmed gap becomes a task. The coding agent works in an isolated worktree of the target; Recast checks paths, the build and then re-runs the frozen requirement with Kane and the oracle.'));
-  const checks = await api('/api/checks');
-  const checksPanel = checks.length ? h('div', { class: 'panel' }, h('div', { class: 'head' }, h('h2', {}, 'Candidate checks'), h('span', { class: 'muted', style: 'font-size:12px' }, 'harness patches and controls · not counted as parity')),
-    h('div', { class: 'tbl-wrap' }, h('table', {}, h('thead', {}, h('tr', {}, ['Check', 'Requirement', 'Candidate', 'Runs', 'Result', 'Expected'].map((c) => h('th', { scope: 'col' }, c)))),
-      h('tbody', {}, checks.map((c) => h('tr', {}, h('td', {}, c.label), h('td', { class: 'id' }, `${c.requirement_id} r${c.revision}`), h('td', { class: 'id' }, `${c.ref} @ ${short(c.candidate_sha, 10)}`), h('td', { class: 'id' }, c.verdicts.join(', ')), h('td', {}, badge(c.status)), h('td', {}, h('span', { class: `badge b-${c.as_expected ? 'passed' : 'gate_failed'}` }, svg(GLYPH[c.as_expected ? 'ok' : 'miss']), c.as_expected ? `${c.expected} ✓` : `expected ${c.expected}`)))))))) : null;
-  if (!tasks.length) { view.replaceChildren(head, checksPanel, h('div', { class: 'panel empty' }, h('h3', {}, 'No repair tasks yet'), 'Run a comparison until a requirement is Missing, then start a repair.', h('div', { style: 'max-width:520px;margin:16px auto 0' }, cmd('pnpm recast repair --requirement REQ-QRY-CANCEL')))); return; }
-  const sel = taskId || tasks[0].id;
-  const t = await api(`/api/tasks/${sel}`);
-  closeStreams();
-  view.replaceChildren(head, checksPanel,
-    h('div', { class: 'panel' }, h('div', { class: 'tbl-wrap' }, h('table', {}, h('thead', {}, h('tr', {}, ['Task', 'Requirement', 'State', 'Attempts', 'Updated'].map((c) => h('th', { scope: 'col' }, c)))),
-      h('tbody', {}, tasks.map((x) => h('tr', { class: 'sel', tabindex: '0', 'aria-selected': String(x.id === sel), onclick: () => repairView(x.id) }, h('td', { class: 'id' }, short(x.id)), h('td', { class: 'id' }, `${x.requirement_id} r${x.revision}`), h('td', {}, badge(x.state)), h('td', { class: 'id' }, `${x.attempts} / ${x.max_attempts}`), h('td', { class: 'id' }, time(x.updated_at)))))))),
+// ---------- discovery ----------
+async function discovery() {
+  await shell('discovery');
+  const d = await api('/api/discovery');
+  const head = h('div', {}, h('div', { class: 'eyebrow' }, 'Observe'), h('h1', {}, 'Discovery'), h('p', { class: 'lede' }, 'What Kane Exploration found in the legacy app. Discovery shows what exists, not what it does: a candidate becomes a requirement only after real baseline runs.'));
+  if (!d || !d.runs.length) { page().replaceChildren(head, h('div', { class: 'panel empty' }, h('h3', {}, 'No exploration imported yet'), 'Map the legacy app with Kane, then import it.', h('div', { style: 'max-width:520px;margin:16px auto 0' }, cmd('pnpm recast discover run --max-leases 8')))); return; }
+  const by = (k) => d.items.filter((i) => i.kind === k);
+  const cands = by('candidate');
+  const open = cands.filter((c) => !c.linked_requirement), done = cands.filter((c) => c.linked_requirement);
+  const r0 = d.runs[0];
+  const candRow = (c) => h(c.linked_requirement ? 'a' : 'div', { class: 'req-card', href: c.linked_requirement ? `#/requirements/${c.linked_requirement}` : null },
+    h('div', { style: 'display:grid;gap:6px;min-width:0' }, h('div', { class: 't' }, c.title), h('div', { class: 'sec', style: 'font-size:13px' }, c.detail.why || ''), h('div', { class: 'meta' }, h('span', {}, c.detail.screenUrl || ''), h('span', {}, `seen ${c.sightings}×`))),
+    c.linked_requirement ? h('span', { class: 'badge b-frozen' }, svg(GLYPH.ok), `→ ${c.linked_requirement}`) : badge('candidate'));
+  page().replaceChildren(head,
+    h('div', { class: 'stats' },
+      h('div', { class: 'stat' }, h('div', { class: 'v' }, String(by('screen').length)), h('div', { class: 'k' }, 'screens mapped')),
+      h('div', { class: 'stat' }, h('div', { class: 'v' }, String(by('flow').length)), h('div', { class: 'k' }, 'flows verified')),
+      h('div', { class: 'stat' }, h('div', { class: 'v' }, String(cands.length)), h('div', { class: 'k' }, 'candidates')),
+      h('div', { class: 'stat' }, h('div', { class: 'v' }, String(by('finding').length)), h('div', { class: 'k' }, 'findings (accessibility)'))),
+    h('p', { class: 'muted', style: 'font-size:12.5px;margin:0' }, `Exploration ${short(r0.exploration_id)} of ${r0.environment} · imported ${time(r0.imported_at)} · map ${short(r0.map_hash, 19)}`),
+    h('section', { style: 'display:grid;gap:10px' }, h('h2', {}, `Covered by a requirement (${done.length})`), done.length ? h('div', { class: 'req-list' }, done.map(candRow)) : h('p', { class: 'muted' }, 'None yet.')),
+    h('section', { style: 'display:grid;gap:10px' }, h('h2', {}, `Open candidates (${open.length})`), open.length ? h('div', { class: 'req-list' }, open.map(candRow)) : h('p', { class: 'muted' }, 'All candidates are covered.'), !SNAP ? cmd('pnpm recast discover link --key <key> --requirement <REQ-ID>') : null),
     h('div', { class: 'grid2' },
-      h('div', { style: 'display:grid;gap:12px;min-width:0' }, t.attempts.length ? t.attempts.map((a) => h('div', { class: 'panel' },
-        h('div', { class: 'head' }, h('h2', {}, `Attempt ${a.attempt}`), badge(a.state)),
-        h('div', { class: 'body', style: 'display:grid;gap:12px' },
-          h('dl', { class: 'kv' }, h('dt', {}, 'agent'), h('dd', {}, a.agent || '—'), h('dt', {}, 'branch'), h('dd', {}, a.branch || '—'), h('dt', {}, 'candidate'), h('dd', {}, a.candidate_sha ? short(a.candidate_sha, 12) : '—'),
-            h('dt', {}, 'work'), h('dd', {}, `${a.tool_uses ?? 0} tool calls · ${a.denied_tools ?? 0} denied · ${a.agent_ms ? Math.round(a.agent_ms / 1000) + ' s' : '—'}${a.agent_cost_usd != null ? ' · $' + Number(a.agent_cost_usd).toFixed(2) : ''}`)),
-          a.gate ? h('div', { class: 'gate' }, a.gate.steps.map((s) => h('span', { class: `badge b-${s.ok ? 'passed' : 'gate_failed'}` }, svg(GLYPH[s.ok ? 'ok' : 'miss']), s.name))) : null,
-          a.decision ? h('div', { class: `verdict ${a.decision.status === 'preserved' ? 'preserved' : 'missing'}` }, svg(GLYPH[glyphFor(a.decision.status)]), h('div', {}, h('strong', { style: 'font-weight:500' }, `${LABEL[a.decision.status]}. `), a.decision.explanation)) : null,
-          a.agent_summary ? h('blockquote', { class: 'kane' }, h('b', {}, 'Agent said (not used to judge)'), a.agent_summary.slice(0, 600)) : null,
-          renderDiff(a.patch),
-        ))) : h('div', { class: 'panel empty' }, 'No attempts yet.')),
-      h('div', { class: 'panel' }, h('div', { class: 'head' }, h('h2', {}, 'Task timeline'), badge(t.state)), h('div', { class: 'body' }, h('ol', { class: 'timeline', id: 'ttl' }))),
-    ));
-  stream(`/api/tasks/${sel}/events`, $('#ttl'));
+      h('div', { class: 'panel' }, h('div', { class: 'head' }, h('h2', {}, 'Screens')), h('div', { class: 'body', style: 'display:grid;gap:12px' }, by('screen').map((x) => h('div', {}, h('div', {}, x.title), h('div', { class: 'id' }, x.key), h('div', { class: 'muted', style: 'font-size:12px;margin-top:4px' }, `${x.detail.controls.length} controls · not pressed by policy: ${x.detail.controls.filter((c) => c.scope === 'policy_blocked').map((c) => c.name).join(', ') || 'none'}`))))),
+      h('div', { class: 'panel' }, h('div', { class: 'head' }, h('h2', {}, 'Verified flows')), h('div', { class: 'body', style: 'display:grid;gap:12px' }, by('flow').map((x) => h('div', {}, h('div', {}, x.title.trim() || '(unnamed)'), h('div', { class: 'muted', style: 'font-size:12px' }, (x.detail.steps || []).slice(0, 6).join(' → ') || x.detail.description || '')))))));
 }
 
-// ---------- report ----------
-async function reportView() {
-  await frame('report');
-  const md = await fetch(dataPath('/api/report.md'), { cache: 'no-store' }).then((r) => r.text());
-  $('#view').replaceChildren(h('div', {}, h('div', { class: 'eyebrow' }, 'Export'), h('h1', {}, 'Acceptance report'), h('p', { class: 'lede' }, 'Scoped evidence for the requirements listed, with real denominators. Also available as JSON and CSV from the CLI.')),
-    h('div', { style: 'display:grid;gap:8px;max-width:720px' }, cmd('pnpm recast report --format markdown --out report.md'), cmd('pnpm recast report --format csv --out report.csv')),
-    h('div', { class: 'panel' }, h('div', { class: 'body' }, h('pre', { class: 'report' }, md))));
+// ---------- report menu ----------
+function reportMenu() {
+  const wrap = h('div', { class: 'menu' });
+  const list = h('div', { class: 'menu-list', hidden: true, role: 'menu' },
+    ['md', 'csv', 'json'].map((f) => h('a', { role: 'menuitem', href: dataPath(`/api/report.${f}`), target: '_blank', rel: 'noopener' }, { md: 'Acceptance report (Markdown)', csv: 'Report rows (CSV)', json: 'Full report (JSON)' }[f])));
+  const btn = h('button', { class: 'btn', type: 'button', 'aria-haspopup': 'menu', 'aria-expanded': 'false', onclick: (e) => { e.stopPropagation(); list.hidden = !list.hidden; btn.setAttribute('aria-expanded', String(!list.hidden)); } }, svg(GLYPH.dl), ' Report');
+  addEventListener('click', () => { list.hidden = true; btn.setAttribute('aria-expanded', 'false'); });
+  wrap.append(btn, list);
+  return wrap;
 }
 
+// ---------- router ----------
 async function route() {
-  closeStreams();
-  const [view, arg] = (location.hash.replace(/^#/, '') || 'parity').split('-');
-  try { if (view === 'repair') await repairView(arg); else if (view === 'report') await reportView(); else if (view === 'discovery') await discoveryView(); else await parityView(); }
-  catch (e) { $('#view').replaceChildren(h('div', { class: 'panel empty' }, h('h3', {}, 'Could not load this view'), String(e.message || e), h('p', {}, 'Check that Postgres is running (docker-compose up -d) and the project exists (pnpm recast init).'))); }
+  const hash = location.hash.replace(/^#\/?/, '');
+  const [view, ...rest] = hash.split('/');
+  loading();
+  try {
+    if (!view) await (SNAP ? landing() : home());
+    else if (view === 'parity') await home();
+    else if (view === 'requirements' && rest[0]) await requirement(decodeURIComponent(rest[0]));
+    else if (view === 'discovery') await discovery();
+    else notFound();
+    const h1 = $('#page h1'); if (h1) { h1.setAttribute('tabindex', '-1'); h1.focus({ preventScroll: true }); }
+    scrollTo(0, 0);
+  } catch (e) { errorView(e); }
 }
+$('#report-slot').replaceWith(reportMenu());
 addEventListener('hashchange', route);
 route();
+
 </script>
 </body>
 </html>
