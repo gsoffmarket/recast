@@ -12,7 +12,7 @@ import { createQueue, createQueueEvents, enqueueAndWait, startWorker, executeRun
 import { fileURLToPath } from 'node:url';
 import { writeFile } from 'node:fs/promises';
 import { buildReport, toCsv, toMarkdown } from '@recast/reports';
-import { startWebServer } from '@recast/web';
+import { startWebServer, exportStaticSite } from '@recast/web';
 import { latestRunDir, readRunMap, suggestCandidates, type DiscoveryMap } from '@recast/discovery';
 import { spawn } from 'node:child_process';
 import { mkdir } from 'node:fs/promises';
@@ -378,6 +378,16 @@ program.command('ui')
     const sql = db.connect();
     const { url } = startWebServer(sql, opts().project, Number(o.port));
     console.log(`Recast workspace: ${url}  (read-only; Ctrl-C to stop)`);
+  });
+
+program.command('export-site')
+  .description('Write the workspace UI with current results as a static, redacted snapshot (for hosting)')
+  .option('--out <dir>', 'output directory', 'site')
+  .action(async (o: { out: string }) => {
+    await withDb(async (sql) => {
+      const r = await exportStaticSite(sql, opts().project, resolve(o.out));
+      out(`Wrote ${r.files} files to ${o.out} (snapshot ${r.generatedAt}).`, r);
+    });
   });
 
 program.command('worker').description('Run the queue worker (one mutating run at a time)').action(async () => {
