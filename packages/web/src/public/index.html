@@ -477,6 +477,65 @@ h2.big { font-size: clamp(26px, 3.4vw, 40px); line-height: 1.1; letter-spacing: 
   .hero .cta .btn-ghost { background: linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.02)); border-color: rgba(255,255,255,.14); box-shadow: inset 0 1px 0 rgba(255,255,255,.09), 0 1px 2px rgba(0,0,0,.5); font-weight: 500; }
 }
 @media (prefers-reduced-motion: reduce) { .btn-primary::before { display: none; } .btn-primary:hover, .btn-line:hover, .btn:hover { transform: none; } }
+
+/* ---- page depth: insight panels ---- */
+.grid2.even { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.stack { display: flex; height: 12px; border-radius: 999px; overflow: hidden; gap: 2px; background: var(--bg-surface-3); }
+.stack span { display: block; min-width: 4px; }
+.legend { display: grid; gap: 8px; }
+.legend div { display: grid; grid-template-columns: 10px 1fr auto; gap: 10px; align-items: center; font-size: 13px; color: var(--text-secondary); }
+.legend i { width: 10px; height: 10px; border-radius: 3px; }
+.legend b { font: 400 12px/1 var(--font-mono); color: var(--text-primary); }
+.bars { display: grid; gap: 8px; padding-top: 12px; border-top: 1px solid var(--border-subtle); }
+.bars a { display: grid; grid-template-columns: 128px 1fr auto; gap: 12px; align-items: center; color: inherit; text-decoration: none; font-size: 12.5px; }
+.bars a:hover .bar i { filter: brightness(1.2); }
+.bars .bar { height: 6px; border-radius: 999px; background: var(--bg-surface-3); overflow: hidden; }
+.bars .bar i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--iris), #a585ff); }
+.bars .n { font: 400 12px/1 var(--font-mono); color: var(--text-tertiary); }
+.honest { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+.honest li { display: grid; grid-template-columns: 18px 1fr; gap: 10px; }
+.honest li svg { width: 16px; height: 16px; margin-top: 2px; color: var(--ok); }
+.honest li.bad svg { color: var(--miss); }
+.honest b { display: block; font-weight: 500; color: var(--text-primary); font-size: 13.5px; }
+.honest span { font-size: 12.5px; color: var(--text-secondary); overflow-wrap: anywhere; }
+.attempts { display: grid; gap: 0; padding: 4px 8px; }
+.att { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 8px; border-radius: var(--r-sm); color: inherit; text-decoration: none; }
+.att + .att { border-top: 1px solid var(--border-subtle); }
+.att:hover { background: var(--bg-hover); text-decoration: none; }
+.att .gl { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: var(--bg-surface-3); color: var(--text-tertiary); }
+.att .gl svg { width: 14px; height: 14px; }
+.att.ok .gl { background: var(--ok-bg); color: var(--ok); } .att.miss .gl { background: var(--miss-bg); color: var(--miss); }
+.att .what { display: grid; gap: 2px; min-width: 0; } .att .what b { font-weight: 500; font-size: 13.5px; color: var(--text-primary); } .att .what span { font-size: 12.5px; color: var(--text-secondary); overflow-wrap: anywhere; }
+.att .when { font: 400 12px/1 var(--font-mono); color: var(--text-tertiary); white-space: nowrap; }
+.legend-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+.legend-grid > div { display: grid; gap: 10px; align-content: start; padding: 16px; border-radius: var(--r-md); background: var(--bg-surface-1); border: 1px solid var(--border-subtle); }
+.legend-grid p { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--text-secondary); }
+.legend-grid .badge { justify-self: start; }
+.funnel { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 1px solid var(--border-subtle); border-radius: var(--r-md); background: radial-gradient(120% 160% at 0% 0%, rgba(128,82,255,.12), transparent 55%), var(--bg-surface-1); }
+.funnel .f { position: relative; display: grid; gap: 4px; padding: 18px 20px; }
+.funnel .f + .f { border-left: 1px solid var(--border-subtle); }
+.funnel b { font-size: 30px; font-weight: 400; letter-spacing: -0.8px; color: var(--text-display); font-variant-numeric: tabular-nums; }
+.funnel .f:last-child b { color: var(--miss); }
+.funnel span { font-size: 12.5px; color: var(--text-secondary); }
+.funnel i { position: absolute; right: -10px; top: 50%; transform: translateY(-50%); z-index: 1; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-style: normal; font-size: 11px; color: var(--text-tertiary); background: var(--bg-surface-3); border: 1px solid var(--border-default); }
+.findings { display: grid; gap: 0; padding: 4px 16px; }
+.findings > div { display: grid; grid-template-columns: 64px 110px minmax(0, 1fr); gap: 12px; align-items: baseline; padding: 10px 0; font-size: 13px; }
+.findings > div + div { border-top: 1px solid var(--border-subtle); }
+.findings .sev { justify-self: start; padding: 2px 8px; border-radius: 999px; font: 500 11px/1.4 var(--font-sans); text-transform: capitalize; background: var(--unc-bg); color: var(--unc); }
+.findings .sev.high { background: var(--miss-bg); color: var(--miss); }
+.findings .k { color: var(--text-tertiary); font-size: 12px; text-transform: capitalize; }
+.findings .t { color: var(--text-secondary); overflow-wrap: anywhere; }
+@media (max-width: 1100px) { .legend-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 900px) { .grid2.even { grid-template-columns: 1fr; } .funnel { grid-template-columns: repeat(2, minmax(0, 1fr)); } .funnel .f:nth-child(3) { border-left: 0; } .funnel .f:nth-child(n+3) { border-top: 1px solid var(--border-subtle); } .funnel .f:nth-child(2) i { display: none; } }
+@media (max-width: 720px) {
+  .legend-grid { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 78%; overflow-x: auto; scroll-snap-type: x mandatory; margin: 0 -16px; padding: 2px 16px 8px; scrollbar-width: none; }
+  .legend-grid::-webkit-scrollbar { display: none; } .legend-grid > div { scroll-snap-align: start; }
+  .bars a { grid-template-columns: 112px 1fr; } .bars .n { grid-column: 1 / -1; }
+  .findings > div { grid-template-columns: auto 1fr; } .findings .t { grid-column: 1 / -1; }
+  .att { grid-template-columns: 28px minmax(0, 1fr); } .att .when { grid-column: 2; }
+  .funnel b { font-size: 26px; } .funnel .f { padding: 14px 16px; }
+  .panel > .head { flex-wrap: wrap; row-gap: 4px; } .panel > .head .id { font-size: 11.5px; }
+}
 </style>
 </head>
 <body>
@@ -593,7 +652,8 @@ function errorView(e) {
     SNAP ? h('p', {}, 'The snapshot is missing this data. Try the home page.') : h('p', {}, 'Check that Postgres is running (docker-compose up -d) and the project exists (pnpm recast init).')));
 }
 function notFound() {
-  page().replaceChildren(h('div', { class: 'notfound' }, h('div', { class: 'big' }, '404'), h('h1', {}, 'Nothing recorded here'), h('p', { class: 'lede' }, 'That requirement or page does not exist in this project.'), h('a', { class: 'btn-line', href: '#/parity' }, 'Back to requirements')));
+  document.querySelectorAll('.bar nav a').forEach((a) => a.setAttribute('aria-current', 'false'));
+  page().replaceChildren(h('div', { class: 'notfound' }, h('div', { class: 'big' }, '404'), h('h1', {}, 'Nothing recorded here'), h('p', { class: 'lede' }, 'That requirement or page does not exist in this project.'), h('div', { class: 'cta', style: 'justify-content:center' }, h('a', { class: 'btn-primary', href: '#/' }, 'Go home'), h('a', { class: 'btn-line', href: '#/parity' }, 'Requirements'), h('a', { class: 'btn-line', href: '#/discovery' }, 'Discovery'))));
 }
 
 // ---------- landing ----------
@@ -736,6 +796,9 @@ async function home() {
   const rows = r.rows.filter((x) => filter === 'all' || x.result === filter);
   const counts = [['all', 'All', s.frozen], ['missing', 'Missing', s.missing], ['preserved', 'Preserved', s.verified - s.intentional], ['uncertain', 'Uncertain', s.uncertain], ['untested', 'Untested', s.untested]];
   const totalCredits = r.runs.creditsByBalance;
+  const stories = (await Promise.all(r.rows.map((x) => api(`/api/requirements/${x.requirement_id}`).catch(() => null)))).filter(Boolean);
+  const attempts = stories.flatMap((d) => d.tasks.flatMap((t) => t.attempts.map((a) => ({ ...a, requirement_id: d.requirement.id }))));
+  const checks = stories.flatMap((d) => (d.checks || []).map((c) => ({ ...c, requirement_id: c.requirement_id ?? d.requirement.id })));
   page().replaceChildren(
     h('div', {}, h('div', { class: 'eyebrow' }, 'Scoped acceptance'), h('h1', {}, 'Requirements'), h('p', { class: 'lede' }, 'Each row is a frozen requirement: behaviour observed in the legacy UI and locked with a hash. Results come from the app\'s own API, not from the test agent\'s opinion.')),
     h('div', { class: 'exec' },
@@ -752,7 +815,60 @@ async function home() {
       h('div', { style: 'display:grid;gap:6px;min-width:0' }, h('div', { class: 't' }, x.objective), h('div', { class: 'meta' }, h('span', {}, `${x.requirement_id} r${x.revision}`), h('span', {}, x.target || 'no target run yet'), x.patch_sha ? h('span', { style: 'color:var(--ok)' }, `verified fix ${short(x.patch_sha, 10)}`) : null)),
       h('div', { class: 'chipline', style: 'justify-content:flex-end' }, badge(x.result), x.patch_sha ? h('span', { class: 'badge b-verified' }, svg(GLYPH.code), 'Fix verified') : null)))) : h('div', { class: 'panel empty' }, h('h3', {}, filter === 'all' ? 'No frozen requirements yet' : 'Nothing matches this filter'), filter === 'all' ? h('div', { style: 'max-width:560px;margin:12px auto 0;display:grid;gap:8px' }, cmd('pnpm recast discover run --max-leases 8'), cmd('pnpm recast baseline --requirement <ID> --runs 2')) : null),
     r.discovery.candidates ? h('a', { class: 'req-card', href: '#/discovery' }, h('div', {}, h('div', { class: 't' }, `Kane Exploration found ${r.discovery.candidates} candidate requirements`), h('div', { class: 'meta' }, h('span', {}, `${r.discovery.screens} screens · ${r.discovery.flows} flows · ${r.discovery.linked.length} covered by requirements`))), h('span', { class: 'prov kane' }, h('i'), 'Open discovery')) : null,
+    stories.length ? h('div', { class: 'grid2 even' }, creditsPanel(stories, totalCredits), honestyPanel(checks, attempts)) : null,
+    attemptsPanel(attempts),
+    legendPanel(),
   );
+}
+
+// ---------- insight panels (real data only) ----------
+const KIND_COLOR = { baseline: 'var(--iris)', compare: 'var(--saffron)', reverify: 'var(--verdant-text)' };
+const KIND_LABEL = { baseline: 'Baseline on the legacy UI', compare: 'Compare on the new UI', reverify: 'Re-verify fixes and regressions' };
+const ATTEMPT = {
+  verified: ['ok', 'Fix verified'], rejected_protected: ['miss', 'Rejected: a protected file changed'], rejected_paths: ['miss', 'Rejected: change outside the allowed folder'],
+  rejected_gate: ['miss', 'Rejected: build gate failed'], not_fixed: ['miss', 'Re-verify still failing'], regression: ['miss', 'Rejected: caused a regression'], no_patch: ['unt', 'No change accepted'],
+};
+const agentName = (a) => (a.startsWith('simulated:') ? `Scripted cheat · ${a.slice(10)}` : /^claude-code/.test(a) ? 'Claude Code' : a);
+
+function creditsPanel(stories, total) {
+  const by = { baseline: 0, compare: 0, reverify: 0 };
+  for (const d of stories) for (const [k, v] of Object.entries(d.cost?.byKind || {})) by[k] = (by[k] || 0) + Number(v);
+  const sum = Object.values(by).reduce((a, b) => a + b, 0) || 1;
+  const maxReq = Math.max(1, ...stories.map((d) => d.cost?.credits || 0));
+  return h('div', { class: 'panel' }, h('div', { class: 'head' }, h('h2', {}, 'Where the Kane credits went'), h('span', { class: 'id' }, `${credits(total)} total`)),
+    h('div', { class: 'body', style: 'display:grid;gap:16px' },
+      h('div', { class: 'stack', role: 'img', 'aria-label': Object.entries(by).map(([k, v]) => `${KIND_LABEL[k]} ${credits(v)}`).join(', ') }, Object.entries(by).filter(([, v]) => v > 0).map(([k, v]) => h('span', { style: `flex:${v};background:${KIND_COLOR[k]}` }))),
+      h('div', { class: 'legend' }, Object.entries(by).map(([k, v]) => h('div', {}, h('i', { style: `background:${KIND_COLOR[k]}` }), h('span', {}, KIND_LABEL[k]), h('b', {}, `${credits(v)} · ${Math.round((v / sum) * 100)}%`)))),
+      h('div', { class: 'bars' }, stories.map((d) => h('a', { href: `#/requirements/${d.requirement.id}` }, h('span', { class: 'id' }, d.requirement.id), h('span', { class: 'bar' }, h('i', { style: `width:${((d.cost?.credits || 0) / maxReq) * 100}%` })), h('span', { class: 'n' }, `${credits(d.cost?.credits)} · ${d.cost?.runs ?? 0} runs`))))));
+}
+
+function honestyPanel(checks, attempts) {
+  const cheats = attempts.filter((a) => a.agent.startsWith('simulated:'));
+  const blocked = cheats.filter((a) => a.state !== 'verified');
+  const row = (ok, title, sub) => h('li', { class: ok ? 'ok' : 'bad' }, svg(GLYPH[ok ? 'ok' : 'miss']), h('div', {}, h('b', {}, title), h('span', {}, sub)));
+  return h('div', { class: 'panel' }, h('div', { class: 'head' }, h('h2', {}, 'Checks on the checker'), h('span', { class: 'id' }, 'controls with a known answer')),
+    h('div', { class: 'body' }, h('ul', { class: 'honest' },
+      checks.map((c) => row(c.as_expected, c.label === 'control-unpatched' ? 'Unpatched code still fails' : c.label === 'harness-operator' ? 'A known-good fix passes' : c.label,
+        `${c.requirement_id} on ${short(c.ref, 24)}: expected ${LABEL[c.expected] || c.expected}, got ${LABEL[c.status] || c.status}${c.regression ? `; regression ${c.regression.ok ? 'clean' : 'failed'}` : ''}`)),
+      cheats.length ? row(blocked.length === cheats.length, `${blocked.length} of ${cheats.length} scripted cheats stopped`, cheats.map((a) => a.agent.slice(10)).join(', ') + ': none reached re-verification') : null,
+      row(true, 'Kane\'s verdict is never an input', 'Every result above comes from the app\'s own API'))));
+}
+
+function attemptsPanel(attempts) {
+  if (!attempts.length) return null;
+  const list = [...attempts].sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+  return h('div', { class: 'panel' }, h('div', { class: 'head' }, h('h2', {}, 'Repair attempts'), h('span', { class: 'id' }, `${attempts.length} attempts · ${attempts.filter((a) => a.state === 'verified').length} verified`)),
+    h('div', { class: 'body attempts' }, list.map((a) => {
+      const [g, label] = ATTEMPT[a.state] || ['unt', String(a.state).replace(/_/g, ' ')];
+      return h('a', { class: `att ${g}`, href: `#/requirements/${a.requirement_id}` }, h('span', { class: 'gl' }, svg(GLYPH[g])),
+        h('div', { class: 'what' }, h('b', {}, label), h('span', {}, `${agentName(a.agent)} · ${a.requirement_id}${a.changed_paths?.length ? ` · ${a.changed_paths.length} file${a.changed_paths.length > 1 ? 's' : ''}` : ''}${a.agent_ms > 1000 ? ` · ${Math.round(a.agent_ms / 1000)}s` : ''}`)),
+        h('span', { class: 'when' }, time(a.created_at)));
+    })));
+}
+
+function legendPanel() {
+  const items = [['preserved', 'The new UI does what the legacy UI did, confirmed by the app\'s API in every run.'], ['missing', 'Two consistent runs show the new UI cannot do it. A confirmed gap.'], ['uncertain', 'Runs disagreed or the evidence was incomplete, so no verdict is claimed.'], ['untested', 'Frozen, but not compared against the new UI yet.'], ['intentional_change', 'A deliberate difference, recorded with its reason.']];
+  return h('section', { style: 'display:grid;gap:12px' }, h('div', { class: 'eyebrow' }, 'What the results mean'), h('div', { class: 'legend-grid' }, items.map(([k, t]) => h('div', {}, badge(k), h('p', {}, t)))));
 }
 
 // ---------- requirement story ----------
@@ -869,7 +985,7 @@ function renderDiff(patch) {
 
 // ---------- discovery ----------
 async function discovery() {
-  await shell('discovery');
+  const o = await shell('discovery');
   const d = await api('/api/discovery');
   const head = h('div', {}, h('div', { class: 'eyebrow' }, 'Observe'), h('h1', {}, 'Discovery'), h('p', { class: 'lede' }, 'What Kane Exploration found in the legacy app. Discovery shows what exists, not what it does: a candidate becomes a requirement only after real baseline runs.'));
   if (!d || !d.runs.length) { page().replaceChildren(head, h('div', { class: 'panel empty' }, h('h3', {}, 'No exploration imported yet'), 'Map the legacy app with Kane, then import it.', h('div', { style: 'max-width:520px;margin:16px auto 0' }, cmd('pnpm recast discover run --max-leases 8')))); return; }
@@ -881,17 +997,19 @@ async function discovery() {
     h('div', { style: 'display:grid;gap:6px;min-width:0' }, h('div', { class: 't' }, c.title), h('div', { class: 'sec', style: 'font-size:13px' }, c.detail.why || ''), h('div', { class: 'meta' }, h('span', {}, c.detail.screenUrl || ''), h('span', {}, `seen ${c.sightings}×`))),
     c.linked_requirement ? h('span', { class: 'badge b-frozen' }, svg(GLYPH.ok), `→ ${c.linked_requirement}`) : badge('candidate'));
   page().replaceChildren(head,
-    h('div', { class: 'stats' },
-      h('div', { class: 'stat' }, h('div', { class: 'v' }, String(by('screen').length)), h('div', { class: 'k' }, 'screens mapped')),
-      h('div', { class: 'stat' }, h('div', { class: 'v' }, String(by('flow').length)), h('div', { class: 'k' }, 'flows verified')),
-      h('div', { class: 'stat' }, h('div', { class: 'v' }, String(cands.length)), h('div', { class: 'k' }, 'candidates')),
-      h('div', { class: 'stat' }, h('div', { class: 'v' }, String(by('finding').length)), h('div', { class: 'k' }, 'findings (accessibility)'))),
+    h('div', { class: 'funnel', 'aria-label': 'From exploration to verdict' },
+      [[by('screen').length, 'screens mapped by Kane'], [cands.length, 'candidate requirements'], [done.length, 'frozen as requirements'], [done.filter((c) => o.report.rows.find((x) => x.requirement_id === c.linked_requirement)?.result === 'missing').length, 'confirmed gaps in the new UI']]
+        .map(([n, t], i) => h('div', { class: 'f' }, h('b', {}, String(n)), h('span', {}, t), i < 3 ? h('i', { 'aria-hidden': 'true' }, '→') : null))),
     h('p', { class: 'muted', style: 'font-size:12.5px;margin:0' }, `Exploration ${short(r0.exploration_id)} of ${r0.environment} · imported ${time(r0.imported_at)} · map ${short(r0.map_hash, 19)}`),
     h('section', { style: 'display:grid;gap:10px' }, h('h2', {}, `Covered by a requirement (${done.length})`), done.length ? h('div', { class: 'req-list' }, done.map(candRow)) : h('p', { class: 'muted' }, 'None yet.')),
     h('section', { style: 'display:grid;gap:10px' }, h('h2', {}, `Open candidates (${open.length})`), open.length ? h('div', { class: 'req-list' }, open.map(candRow)) : h('p', { class: 'muted' }, 'All candidates are covered.'), !SNAP ? cmd('pnpm recast discover link --key <key> --requirement <REQ-ID>') : null),
     h('div', { class: 'grid2' },
-      h('div', { class: 'panel' }, h('div', { class: 'head' }, h('h2', {}, 'Screens')), h('div', { class: 'body', style: 'display:grid;gap:12px' }, by('screen').map((x) => h('div', {}, h('div', {}, x.title), h('div', { class: 'id' }, x.key), h('div', { class: 'muted', style: 'font-size:12px;margin-top:4px' }, `${x.detail.controls.length} controls · not pressed by policy: ${x.detail.controls.filter((c) => c.scope === 'policy_blocked').map((c) => c.name).join(', ') || 'none'}`))))),
-      h('div', { class: 'panel' }, h('div', { class: 'head' }, h('h2', {}, 'Verified flows')), h('div', { class: 'body', style: 'display:grid;gap:12px' }, by('flow').map((x) => h('div', {}, h('div', {}, x.title.trim() || '(unnamed)'), h('div', { class: 'muted', style: 'font-size:12px' }, (x.detail.steps || []).slice(0, 6).join(' → ') || x.detail.description || '')))))));
+      h('div', { class: 'panel' }, h('div', { class: 'head' }, h('h2', {}, `Screens (${by('screen').length})`)), h('div', { class: 'body', style: 'display:grid;gap:12px' }, by('screen').map((x) => h('div', {}, h('div', {}, x.title), h('div', { class: 'id' }, x.key), h('div', { class: 'muted', style: 'font-size:12px;margin-top:4px' }, `${x.detail.controls.length} controls · not pressed by policy: ${x.detail.controls.filter((c) => c.scope === 'policy_blocked').map((c) => c.name).join(', ') || 'none'}`))))),
+      h('div', { class: 'panel' }, h('div', { class: 'head' }, h('h2', {}, `Verified flows (${by('flow').length})`)), h('div', { class: 'body', style: 'display:grid;gap:12px' }, by('flow').map((x) => h('div', {}, h('div', {}, x.title.trim() || '(unnamed)'), h('div', { class: 'muted', style: 'font-size:12px' }, (x.detail.steps || []).slice(0, 6).join(' → ') || x.detail.description || '')))))),
+    by('finding').length ? h('div', { class: 'panel' }, h('div', { class: 'head' }, h('h2', {}, `Findings (${by('finding').length})`), h('span', { class: 'id' }, 'reported by Kane while exploring')),
+      h('div', { class: 'body findings' }, [...by('finding')].sort((a, b) => (b.detail?.severity === 'high') - (a.detail?.severity === 'high')).slice(0, 8).map((x) => h('div', {}, h('span', { class: `sev ${x.detail?.severity}` }, x.detail?.severity || ''), h('span', { class: 'k' }, String(x.detail?.kind || '').replace(/_/g, ' ')), h('span', { class: 't' }, x.title))),
+        by('finding').length > 8 ? h('p', { class: 'muted', style: 'margin:4px 0 0;font-size:12.5px' }, `and ${by('finding').length - 8} more in the full report`) : null)) : null
+  );
 }
 
 // ---------- report menu ----------
@@ -962,7 +1080,7 @@ function motion() {
     }
   }, { rootMargin: '0px 0px -8% 0px' });
   const groups = new Map();
-  page().querySelectorAll('.result, .req-card, .steps5 > div, .numbers > div, .stat, .life li, .netdiff > *, .cmp .step, .guard, .fix-diff, .term, .closer').forEach((el) => {
+  page().querySelectorAll('.result, .req-card, .steps5 > div, .numbers > div, .stat, .life li, .netdiff > *, .cmp .step, .guard, .fix-diff, .term, .closer, .att, .legend-grid > div, .funnel .f, .findings > div, .grid2 > .panel').forEach((el) => {
     const top = el.getBoundingClientRect().top;
     const key = el.parentElement; const i = groups.get(key) ?? 0; groups.set(key, i + 1);
     if (top < vh) return;
