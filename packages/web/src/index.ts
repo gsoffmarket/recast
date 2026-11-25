@@ -1,5 +1,5 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, rm } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import * as db from '@recast/db';
@@ -127,4 +127,48 @@ export function startWebServer(sql: db.Sql, projectName: string, port = 4173) {
   });
   server.listen(port, '127.0.0.1');
   return { server, url: `http://127.0.0.1:${port}/`, slimPath };
+}
+
+// ---------- static snapshot (for hosting the workspace without the local database) ----------
+
+/**
+ * Write the workspace as a static site: the same page plus every API response as JSON, and run/task
+ * event streams as replayable JSON. Everything passes through redact() first (home paths, share links,
+ * UI tokens). Used to publish a read-only snapshot of real results, e.g. on Vercel.
+ */
+export async function exportStaticSite(sql: db.Sql, projectName: string, outDir: string): Promise<{ files: number; generatedAt: string }> {
+  const generatedAt = new Date().toISOString();
+  await rm(outDir, { recursive: true, force: true });
+  let files = 0;
+  const put = async (rel: string, body: unknown) => {
+    const full = join(outDir, rel);
+    await mkdir(dirname(full), { recursive: true });
+    const text = typeof body === 'string' ? body : JSON.stringify(body);
+    await writeFile(full, redact(text));
+    files++;
+  };
+  const project = await db.getProject(sql, projectName);
+  if (!project) throw new Error(`unknown project ${projectName}`);
+  await put('data/overview.json', await overview(sql, projectName));
+  await put('data/report.md', toMarkdown(await buildReport(sql, project.id, project.name)));
+  await put('data/discovery.json', await discovery(sql, projectName));
+  await put('data/checks.json', await checks(sql, projectName));
+  const ts = await tasks(sql, projectName);
+  await put('data/tasks.json', ts);
+  for (const t of ts) {
+    await put(`data/tasks/${t.id}.json`, await taskDetail(sql, t.id));
+    await put(`data/tasks/${t.id}/events.json`, await sql`SELECT seq, type, payload, at FROM task_events WHERE task_id = ${t.id} ORDER BY seq`);
+  }
+  for (const r of await db.listRevisions(sql, project.id)) {
+    const d = await requirementDetail(sql, projectName, r.requirement_id);
+    await put(`data/requirements/${r.requirement_id}.json`, d);
+    for (const run of d?.runs ?? []) await put(`data/runs/${run.id}/events.json`, await sql`SELECT seq, type, payload, at FROM run_events WHERE run_id = ${run.id} ORDER BY seq`);
+  }
+  const page = (await readFile(join(PUBLIC, 'index.html'), 'utf8')).replace('<script>\n\'use strict\';', `<script>window.RECAST_SNAPSHOT = ${JSON.stringify({ generatedAt, project: projectName })};</script>\n<script>\n'use strict';`);
+  if (!page.includes('RECAST_SNAPSHOT')) throw new Error('could not inject snapshot marker into index.html');
+  await put('index.html', page);
+  await put('vercel.json', { cleanUrls: true, headers: [{ source: '/(.*)', headers: [
+    { key: 'Content-Security-Policy', value: "default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'; img-src 'self' data:" },
+    { key: 'X-Content-Type-Options', value: 'nosniff' }, { key: 'Referrer-Policy', value: 'no-referrer' }] }] });
+  return { files, generatedAt };
 }
