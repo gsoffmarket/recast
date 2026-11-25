@@ -303,12 +303,19 @@ details.setup > summary { color: var(--text-tertiary); font-size: 12.5px; paddin
 .proof-frame img { aspect-ratio: 16 / 9; }
 @media (max-width: 900px) { .proof { grid-template-columns: minmax(0, 1fr); } .proof-frame img { aspect-ratio: 16 / 7; } }
 @media (max-width: 900px) { .hero .seam { max-width: 200px; justify-self: start; } }
+
+/* ---- navbar aligned to the content column ---- */
+.bar { display: block; height: auto; padding: 0; }
+.bar-inner { max-width: 1200px; margin: 0 auto; height: 56px; display: flex; align-items: center; gap: 24px; padding: 0 max(16px, env(safe-area-inset-right, 0px)) 0 max(16px, env(safe-area-inset-left, 0px)); }
+.menu > button { white-space: nowrap; gap: 6px; }
+.menu > button svg { width: 14px; height: 14px; }
 </style>
 </head>
 <body>
 <a href="#page" class="btn" style="position:absolute;left:-9999px;top:8px" onfocus="this.style.left='8px'" onblur="this.style.left='-9999px'">Skip to content</a>
 <div class="app">
   <header class="bar">
+   <div class="bar-inner">
     <a class="brand" href="#/" style="text-decoration:none">
       <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><rect x="1" y="3" width="7" height="16" rx="3" fill="#15846e"/><circle cx="11" cy="7" r="1" fill="#9a9a9a"/><circle cx="11" cy="11" r="1" fill="#9a9a9a"/><circle cx="11" cy="15" r="1" fill="#9a9a9a"/><rect x="14" y="3" width="7" height="16" rx="3" fill="#8052ff"/></svg>
       <span class="word">Recast</span>
@@ -320,6 +327,7 @@ details.setup > summary { color: var(--text-tertiary); font-size: 12.5px; paddin
     <span class="spacer"></span>
     <span class="snap" id="snap"></span>
     <span id="report-slot"></span>
+   </div>
   </header>
   <main class="page" id="page" aria-live="polite"></main>
 </div>
