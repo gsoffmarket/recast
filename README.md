@@ -9,7 +9,7 @@
 
 Recast is a behaviour-parity tool for UI migrations. It uses [Kane CLI](https://www.testmuai.com/kane-cli/) to observe a working legacy web app, turns what the app does into frozen, hashed requirements, finds what a replacement UI has lost, hands each confirmed gap to a coding agent, and accepts the agent's patch only after Kane and an independent oracle show the original requirement passing on the new code.
 
-Built for the KaneCLI Online Hackathon by TestMu AI.
+Built for the KaneCLI Online Hackathon by TestMu AI. **Live results:** [recast-sooty.vercel.app](https://recast-sooty.vercel.app), a read-only snapshot of the workspace from real local runs.
 
 ## The problem
 
@@ -92,7 +92,7 @@ pnpm recast init --config evaluation/trino/recast.config.json
 pnpm recast doctor            # checks database, queue, Kane CLI, credits, environments
 ```
 
-Start the worker in a second terminal with `pnpm worker`, and the workspace UI with `pnpm ui` (http://127.0.0.1:4173).
+Start the worker in a second terminal with `pnpm worker`, and the workspace UI with `pnpm ui` (http://127.0.0.1:4173). To publish a read-only snapshot of your results, run `pnpm recast export-site --out site` and deploy the folder to any static host (the live demo uses Vercel).
 
 ### Reproduce the Trino results
 
