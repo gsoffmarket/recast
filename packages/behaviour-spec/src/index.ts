@@ -17,8 +17,7 @@ export const PROVENANCES = ['candidate', 'source-observed', 'intended-change'] a
 export const LIFECYCLES = ['candidate', 'source-observed', 'established', 'frozen', 'superseded', 'retired'] as const;
 export type Lifecycle = (typeof LIFECYCLES)[number];
 
-/** The Recast-owned requirement document (not Kane syntax). */
-export const RequirementSchema = z.object({
+const RequirementObject = z.object({
   id: z.string().regex(/^REQ-[A-Z0-9-]{2,60}$/, 'id must look like REQ-ABC-123'),
   revision: z.number().int().positive(),
   objective: z.string().min(8).max(300),
@@ -36,7 +35,10 @@ export const RequirementSchema = z.object({
   intent_reason: z.string().optional(),
   scope: z.array(z.string()).default([]),
   source_evidence: z.array(z.string()).default([]),
-}).superRefine((r, ctx) => {
+});
+
+/** The Recast-owned requirement document (not Kane syntax). */
+export const RequirementSchema = RequirementObject.superRefine((r, ctx) => {
   if (r.provenance === 'intended-change' && !r.intent_reason) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['intent_reason'], message: 'an intended change needs a reason' });
   }
@@ -48,6 +50,17 @@ export type Requirement = z.infer<typeof RequirementSchema>;
 
 export function parseRequirement(input: unknown): Requirement {
   return RequirementSchema.parse(input);
+}
+
+/**
+ * A capture draft: everything a requirement has except its assertions, which `recast capture` infers
+ * from what the legacy app actually did. A draft is never frozen or compared; it only drives probe runs.
+ */
+export const DraftRequirementSchema = RequirementObject.extend({ assertions: z.array(AssertionSchema).max(0).default([]) });
+export type DraftRequirement = z.infer<typeof DraftRequirementSchema>;
+
+export function parseDraft(input: unknown): DraftRequirement {
+  return DraftRequirementSchema.parse(input);
 }
 
 /** Fields that define behaviour. Evidence lists are provenance and do not change the hash. */
@@ -101,7 +114,7 @@ export interface CompiledObjective {
  * Compile a requirement into a Kane objective for one environment. Values are passed as
  * Kane variables ({{name}}), so the objective text is identical across environments.
  */
-export function compileObjective(r: Requirement, nav: NavigationBinding, runInputs: Record<string, string>): CompiledObjective {
+export function compileObjective(r: Requirement | DraftRequirement, nav: NavigationBinding, runInputs: Record<string, string>): CompiledObjective {
   const variables: Record<string, string> = {};
   for (const [k, v] of Object.entries({ ...r.inputs, ...runInputs })) variables[k] = String(v);
   const missing = [...r.action_intent.matchAll(/\{\{(\w+)\}\}/g)].map((m) => m[1]!).filter((k) => !(k in variables));

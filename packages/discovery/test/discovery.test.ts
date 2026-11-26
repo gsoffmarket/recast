@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseDeltas, suggestCandidates } from '@recast/discovery';
+import { parseDeltas, suggestCandidates, captureRequirementId, draftFromCandidate } from '@recast/discovery';
 
 const delta = (d: object) => JSON.stringify({ op: 'delta', seq: 1, delta: { run_id: 'run-1', ...d } });
 const text = [
@@ -30,5 +30,26 @@ describe('Kane Exploration import', () => {
   });
   it('is stable: same map, same hash', () => {
     expect(parseDeltas(text, 'exp-1').hash).toBe(map.hash);
+  });
+});
+
+describe('capture drafts', () => {
+  const kill = { key: 'control:localhost:8080/ui/query.html:kill', kind: 'state_changing_control' as const, screen: 'Query Overview - Trino', screenUrl: 'localhost:8080/ui/query.html', title: '"Kill" on Query Overview - Trino', why: 'x' };
+
+  it('names a captured control by screen and control', () => {
+    expect(captureRequirementId(kill)).toBe('REQ-CAP-QUERY-OVERVIEW-KILL');
+    expect(captureRequirementId({ ...kill, screen: null, title: '"Delete item!"' })).toBe('REQ-CAP-APP-DELETE-ITEM');
+  });
+
+  it('drafts an intent from the subject and the control, with no assertions yet', () => {
+    const d = draftFromCandidate(kill, { fixture: 'f-v1', oracle: 'api', subject: 'the order {{order_id}}' })!;
+    expect(d.action_intent).toBe('Open the order {{order_id}} and use its "Kill" control, using only the web UI.');
+    expect(d.assertions).toEqual([]);
+    expect(d.source_evidence).toEqual([`discovery:${kill.key}`]);
+    expect(d.provenance).toBe('source-observed');
+  });
+
+  it('does not draft verified flows', () => {
+    expect(draftFromCandidate({ ...kill, kind: 'verified_flow' }, { fixture: 'f', oracle: 'o', subject: 'the app' })).toBeNull();
   });
 });

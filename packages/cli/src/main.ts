@@ -3,17 +3,17 @@ import { readFile } from 'node:fs/promises';
 import { Command, Option } from 'commander';
 import { ZodError } from 'zod';
 import { newId } from '@recast/shared';
-import { parseRequirement, requirementHash, lifecycleAfterBaseline, COMPARATOR_VERSION } from '@recast/behaviour-spec';
+import { parseDraft, parseRequirement, requirementHash, lifecycleAfterBaseline, COMPARATOR_VERSION } from '@recast/behaviour-spec';
 import { kaneVersion, kaneAuthenticated, kaneBalance, TESTED_KANE_VERSION } from '@recast/kane-adapter';
-import { evaluateRun, baselineStatus, classify, type RunEvaluation } from '@recast/parity';
+import { evaluateRun, baselineStatus, classify, inferAssertions, type ObservedValue, type ProbeObservations, type RunEvaluation } from '@recast/parity';
 import * as db from '@recast/db';
-import { createQueue, createQueueEvents, enqueueAndWait, startWorker, executeRun, runRepair, verifyCandidateRef, makeAdapters, oracleMatches, parseProjectConfig, type ProjectConfig, type RunJob, type RunSummary } from '@recast/runner';
+import { createQueue, createQueueEvents, enqueueAndWait, startWorker, executeRun, runRepair, verifyCandidateRef, makeAdapters, oracleMatches, parseProjectConfig, captureSubject, type ProjectConfig, type RunJob, type RunSummary } from '@recast/runner';
 import { scaffoldProject } from './scaffold.ts';
 import { fileURLToPath } from 'node:url';
 import { writeFile } from 'node:fs/promises';
-import { buildReport, toCsv, toMarkdown } from '@recast/reports';
+import { buildReport, toCsv, toMarkdown, buildContract, contractMarkdown } from '@recast/reports';
 import { startWebServer, exportStaticSite, buildDocs, describeCli } from '@recast/web';
-import { latestRunDir, readRunMap, suggestCandidates, type DiscoveryMap } from '@recast/discovery';
+import { latestRunDir, readRunMap, suggestCandidates, draftFromCandidate, type CandidateSuggestion, type DiscoveryMap } from '@recast/discovery';
 import { spawn } from 'node:child_process';
 import { mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -66,6 +66,43 @@ function printRun(r: RunSummary) {
 
 function evaluationsOf(rows: db.RunRow[]): RunEvaluation[] {
   return rows.filter((r) => r.state === 'completed' && r.evaluation).map((r) => r.evaluation as RunEvaluation);
+}
+
+type ProjectRow = NonNullable<Awaited<ReturnType<typeof db.getProject>>>;
+
+/** Run a revision on the source environment and set its lifecycle from all its baseline runs. */
+async function baselineRevision(sql: db.Sql, project: ProjectRow, cfg: ProjectConfig, rev: db.RevisionRow, runs: number) {
+  const source = cfg.environments.find((e) => e.kind === 'source')!;
+  const batch = newId().slice(0, 8);
+  const jobs: RunJob[] = Array.from({ length: runs }, (_, i) => ({ projectName: project.name, requirementId: rev.requirement_id, revision: rev.revision, environment: source.name, kind: 'baseline', idempotencyKey: `baseline.${rev.requirement_id}.r${rev.revision}.${batch}.${i + 1}` }));
+  if (!opts().json) console.log(`Baseline ${rev.requirement_id} r${rev.revision} on ${source.name}: ${jobs.length} runs`);
+  await runJobs(sql, jobs);
+  const env = (await db.getEnvironment(sql, project.id, source.name))!;
+  const b = baselineStatus(evaluationsOf(await db.listRunsFor(sql, project.id, rev.requirement_id, rev.revision, 'baseline', env.id)));
+  const lifecycle = lifecycleAfterBaseline(b.matching, b.contradictions);
+  await db.setLifecycle(sql, project.id, rev.requirement_id, rev.revision, lifecycle);
+  return { ...b, lifecycle };
+}
+
+async function freezeRevision(sql: db.Sql, projectId: string, rev: db.RevisionRow) {
+  await db.setLifecycle(sql, projectId, rev.requirement_id, rev.revision, 'frozen', true);
+}
+
+/** Run a frozen revision on a target environment, classify it from this batch only, and record the result. */
+async function compareRevision(sql: db.Sql, project: ProjectRow, cfg: ProjectConfig, rev: db.RevisionRow, targetName: string, runs: number) {
+  const batch = newId().slice(0, 8);
+  const jobs: RunJob[] = Array.from({ length: runs }, (_, i) => ({ projectName: project.name, requirementId: rev.requirement_id, revision: rev.revision, environment: targetName, kind: 'compare', idempotencyKey: `compare.${targetName}.${rev.requirement_id}.r${rev.revision}.${batch}.${i + 1}` }));
+  if (!opts().json) console.log(`Compare ${rev.requirement_id} r${rev.revision} on ${targetName}: ${jobs.length} runs`);
+  const results = await runJobs(sql, jobs);
+  const source = cfg.environments.find((e) => e.kind === 'source')!;
+  const srcEnv = (await db.getEnvironment(sql, project.id, source.name))!;
+  const sourceRuns = evaluationsOf(await db.listRunsFor(sql, project.id, rev.requirement_id, rev.revision, 'baseline', srcEnv.id));
+  const thisBatch = new Set(results.map((r) => r.runId));
+  const tgtEnv = (await db.getEnvironment(sql, project.id, targetName))!;
+  const targetRuns = evaluationsOf((await db.listRunsFor(sql, project.id, rev.requirement_id, rev.revision, 'compare', tgtEnv.id)).filter((r) => thisBatch.has(r.id)));
+  const decision = classify({ requirement: rev.body, baselineEstablished: true, sourceRuns, targetRuns });
+  await db.insertParity(sql, { project_id: project.id, requirement_id: rev.requirement_id, revision: rev.revision, spec_hash: rev.hash, status: decision.status, reason_code: decision.reasonCode, explanation: decision.explanation, decision, comparator_version: decision.comparatorVersion });
+  return decision;
 }
 
 // ---------- commands ----------
@@ -175,17 +212,8 @@ program.command('baseline')
       const rev = await db.getRevision(sql, project.id, o.requirement);
       if (!rev) throw new UsageError(`unknown requirement ${o.requirement}`);
       if (rev.frozen_at) throw new UsageError(`${o.requirement} r${rev.revision} is already frozen.`);
-      const source = cfg.environments.find((e) => e.kind === 'source')!;
-      const batch = newId().slice(0, 8);
-      const jobs: RunJob[] = Array.from({ length: Number(o.runs) }, (_, i) => ({ projectName: project.name, requirementId: rev.requirement_id, revision: rev.revision, environment: source.name, kind: 'baseline', idempotencyKey: `baseline.${rev.requirement_id}.r${rev.revision}.${batch}.${i + 1}` }));
-      if (!opts().json) console.log(`Baseline ${rev.requirement_id} r${rev.revision} on ${source.name}: ${jobs.length} runs`);
-      await runJobs(sql, jobs);
-      const env = (await db.getEnvironment(sql, project.id, source.name))!;
-      const all = evaluationsOf(await db.listRunsFor(sql, project.id, rev.requirement_id, rev.revision, 'baseline', env.id));
-      const b = baselineStatus(all);
-      const lifecycle = lifecycleAfterBaseline(b.matching, b.contradictions);
-      await db.setLifecycle(sql, project.id, rev.requirement_id, rev.revision, lifecycle);
-      out(`${rev.requirement_id} r${rev.revision}: ${b.matching} matching source runs, ${b.contradictions} contradicting → ${lifecycle}.`, { ...b, lifecycle });
+      const b = await baselineRevision(sql, project, cfg, rev, Number(o.runs));
+      out(`${rev.requirement_id} r${rev.revision}: ${b.matching} matching source runs, ${b.contradictions} contradicting → ${b.lifecycle}.`, b);
       process.exitCode = b.established ? EXIT.ok : EXIT.infra;
     });
   });
@@ -200,7 +228,7 @@ program.command('freeze')
       if (!rev) throw new UsageError(`unknown requirement ${o.requirement}`);
       if (rev.frozen_at) return out(`${o.requirement} r${rev.revision} already frozen (${rev.hash}).`, rev);
       if (rev.lifecycle !== 'established') throw new UsageError(`${o.requirement} r${rev.revision} is ${rev.lifecycle}; run \`recast baseline\` until it is established.`);
-      await db.setLifecycle(sql, project.id, rev.requirement_id, rev.revision, 'frozen', true);
+      await freezeRevision(sql, project.id, rev);
       out(`Frozen ${rev.requirement_id} r${rev.revision}  ${rev.hash}  (comparator ${COMPARATOR_VERSION}).`, { ...rev, lifecycle: 'frozen' });
     });
   });
@@ -218,18 +246,7 @@ program.command('compare')
       if (!rev.frozen_at) throw new UsageError(`${o.requirement} r${rev.revision} is not frozen; compare only runs against frozen requirements.`);
       const target = cfg.environments.find((e) => e.name === o.target && e.kind !== 'source');
       if (!target) throw new UsageError(`no target environment ${o.target}`);
-      const batch = newId().slice(0, 8);
-      const jobs: RunJob[] = Array.from({ length: Number(o.runs) }, (_, i) => ({ projectName: project.name, requirementId: rev.requirement_id, revision: rev.revision, environment: target.name, kind: 'compare', idempotencyKey: `compare.${target.name}.${rev.requirement_id}.r${rev.revision}.${batch}.${i + 1}` }));
-      if (!opts().json) console.log(`Compare ${rev.requirement_id} r${rev.revision} on ${target.name}: ${jobs.length} runs`);
-      const results = await runJobs(sql, jobs);
-      const source = cfg.environments.find((e) => e.kind === 'source')!;
-      const srcEnv = (await db.getEnvironment(sql, project.id, source.name))!;
-      const sourceRuns = evaluationsOf(await db.listRunsFor(sql, project.id, rev.requirement_id, rev.revision, 'baseline', srcEnv.id));
-      const thisBatch = new Set(results.map((r) => r.runId));
-      const tgtEnv = (await db.getEnvironment(sql, project.id, target.name))!;
-      const targetRuns = evaluationsOf((await db.listRunsFor(sql, project.id, rev.requirement_id, rev.revision, 'compare', tgtEnv.id)).filter((r) => thisBatch.has(r.id)));
-      const decision = classify({ requirement: rev.body, baselineEstablished: true, sourceRuns, targetRuns });
-      await db.insertParity(sql, { project_id: project.id, requirement_id: rev.requirement_id, revision: rev.revision, spec_hash: rev.hash, status: decision.status, reason_code: decision.reasonCode, explanation: decision.explanation, decision, comparator_version: decision.comparatorVersion });
+      const decision = await compareRevision(sql, project, cfg, rev, target.name, Number(o.runs));
       out(`${rev.requirement_id} r${rev.revision} on ${target.name}: ${decision.status.toUpperCase()} (${decision.reasonCode})\n  ${decision.explanation}`, decision);
       process.exitCode = decision.status === 'missing' ? EXIT.gap : decision.status === 'uncertain' || decision.status === 'untested' ? EXIT.infra : EXIT.ok;
     });
@@ -360,6 +377,133 @@ disc.command('link')
       const r = await sql`UPDATE discovery_items SET status = 'linked', linked_requirement = ${o.requirement} WHERE project_id = ${project.id} AND kind = 'candidate' AND key = ${o.key}`;
       if (r.count === 0) throw new UsageError(`no candidate with key ${o.key}`);
       out(`Linked ${o.key} → ${o.requirement}.`, { key: o.key, requirement: o.requirement });
+    });
+  });
+
+// ---------- capture, check, contract: freeze a whole legacy app and hold a rebuild to it ----------
+
+const collect = (v: string, prev: string[]) => [...prev, v];
+
+program.command('capture')
+  .description('Freeze what the legacy app does: probe each discovered control on the source UI, infer its effect from the API, confirm it with fresh runs, then freeze it')
+  .option('--candidate <key>', 'only this discovery candidate (repeat for several; keys from `recast discover list --json`)', collect, [])
+  .option('--include-linked', 'also capture candidates already linked to a requirement')
+  .option('--limit <n>', 'capture at most this many candidates')
+  .option('--probe-runs <n>', 'runs used to infer what each control does', '2')
+  .option('--confirm-runs <n>', 'fresh runs that must then satisfy the inferred result (at least 2)', '2')
+  .option('--out <dir>', 'write each captured requirement as JSON here', 'captured')
+  .option('--dry-run', 'show the drafts and how many Kane runs they need, and run nothing')
+  .option('--yes', 'confirm spending Kane credits on the runs')
+  .action(async (o: { candidate: string[]; includeLinked?: boolean; limit?: string; probeRuns: string; confirmRuns: string; out: string; dryRun?: boolean; yes?: boolean }) => {
+    const probeRuns = Number(o.probeRuns);
+    const confirmRuns = Number(o.confirmRuns);
+    if (!Number.isInteger(probeRuns) || probeRuns < 1) throw new UsageError('--probe-runs must be at least 1');
+    if (!Number.isInteger(confirmRuns) || confirmRuns < 2) throw new UsageError('--confirm-runs must be at least 2: a behaviour is only established by two matching runs');
+    await withDb(async (sql) => {
+      const { project, cfg } = await requireProject(sql);
+      const parsed = parseProjectConfig(cfg);
+      const adapters = makeAdapters(parsed);
+      const source = cfg.environments.find((e) => e.kind === 'source')!;
+      const rows = await sql<{ key: string; status: string; detail: CandidateSuggestion }[]>`SELECT key, status, detail FROM discovery_items WHERE project_id = ${project.id} AND kind = 'candidate' ORDER BY title`;
+      if (!rows.length) throw new UsageError('No discovered candidates. Run `recast discover run` first, so Kane maps the legacy UI.');
+      const results: Array<{ candidate: string; requirement: string | null; outcome: string; detail: string }> = [];
+      const drafts: Array<{ key: string; draft: ReturnType<typeof parseDraft> }> = [];
+      for (const r of rows) {
+        if (o.candidate.length && !o.candidate.includes(r.key)) continue;
+        if (r.status === 'excluded') { results.push({ candidate: r.key, requirement: null, outcome: 'skipped', detail: 'excluded from requirements' }); continue; }
+        if (r.status === 'linked' && !o.includeLinked) { results.push({ candidate: r.key, requirement: null, outcome: 'skipped', detail: 'already covered by a requirement (--include-linked to capture it anyway)' }); continue; }
+        const raw = draftFromCandidate(r.detail, { fixture: adapters.fixtureIdentity, oracle: adapters.oracleName, subject: captureSubject(parsed) });
+        if (!raw) { results.push({ candidate: r.key, requirement: null, outcome: 'skipped', detail: 'flows have no single effect to characterise; write a requirement for them by hand' }); continue; }
+        const draft = parseDraft(raw);
+        if (await db.getRevision(sql, project.id, draft.id)) { results.push({ candidate: r.key, requirement: draft.id, outcome: 'skipped', detail: `${draft.id} already exists` }); continue; }
+        drafts.push({ key: r.key, draft });
+      }
+      const todo = o.limit ? drafts.slice(0, Number(o.limit)) : drafts;
+      const kaneRuns = todo.length * (probeRuns + confirmRuns);
+      const plan = [`Capture on ${source.name}: ${todo.length} control(s), ${probeRuns} probe + ${confirmRuns} confirm runs each = ${kaneRuns} Kane runs (about 25–65 credits per run in the Trino case).`,
+        ...todo.map((d) => `  ${d.draft.id}\n    ${d.draft.action_intent}`)];
+      if (o.dryRun || !todo.length) {
+        out([...plan, ...results.map((r) => `  skip ${r.candidate}: ${r.detail}`)].join('\n'), { plan: todo.map((d) => ({ candidate: d.key, draft: d.draft })), kaneRuns, skipped: results });
+        return;
+      }
+      if (!o.yes) throw new UsageError(`${plan[0]}\nRe-run with --yes to spend the credits, or --dry-run to preview the drafts.`);
+      if (!opts().json) console.log(plan.join('\n'));
+      await mkdir(o.out, { recursive: true });
+      let unsettled = 0;
+      for (const { key, draft } of todo) {
+        const batch = newId().slice(0, 8);
+        if (!opts().json) console.log(`\n${draft.id}: probing the legacy UI (${probeRuns} runs)`);
+        const probes = await runJobs(sql, Array.from({ length: probeRuns }, (_, i) => ({ projectName: project.name, requirementId: draft.id, revision: 0, environment: source.name, kind: 'probe' as const, draft, idempotencyKey: `probe.${draft.id}.${batch}.${i + 1}` })));
+        const usable = probes.filter((p) => p.state === 'completed' && (p.kaneOutcome === 'passed' || p.kaneOutcome === 'did_not_pass'));
+        if (usable.length < probeRuns) { unsettled++; results.push({ candidate: key, requirement: draft.id, outcome: 'inconclusive', detail: `${probeRuns - usable.length} of ${probeRuns} probe runs did not complete` }); continue; }
+        const obs = await sql<{ run_id: string; path: string; value: ObservedValue['value']; status: ObservedValue['status'] }[]>`SELECT run_id, path, value, status FROM observations WHERE run_id = ANY(${usable.map((p) => p.runId)})`;
+        const probeObs: ProbeObservations[] = usable.map((p) => {
+          const mine = obs.filter((x) => x.run_id === p.runId);
+          return {
+            runId: p.runId,
+            before: mine.filter((x) => x.path.startsWith('before:')).map((x) => ({ path: x.path.slice('before:'.length), value: x.value, status: x.status })),
+            after: mine.filter((x) => !x.path.startsWith('before:')).map((x) => ({ path: x.path, value: x.value, status: x.status })),
+          };
+        });
+        const inferred = inferAssertions(probeObs);
+        if (!inferred.assertions.length) {
+          results.push({ candidate: key, requirement: draft.id, outcome: 'no observable effect', detail: inferred.skipped.map((x) => `${x.path}: ${x.reason}`).join('; ') || 'the oracle observed nothing' });
+          continue;
+        }
+        const req = parseRequirement({ ...draft, assertions: inferred.assertions, source_evidence: [...draft.source_evidence, ...usable.map((p) => `probe-run:${p.runId}`)] });
+        await writeFile(resolve(o.out, `${req.id}.json`), `${JSON.stringify(req, null, 2)}\n`);
+        const hash = requirementHash(req, req.fixture);
+        const rev = await db.addRevision(sql, { project_id: project.id, requirement_id: req.id, revision: req.revision, body: req, fixture_identity: req.fixture, hash, lifecycle: 'candidate' });
+        if (!opts().json) console.log(`  inferred: ${inferred.assertions.map((a) => `${a.path} = ${JSON.stringify(a.expected)}`).join(', ')}\n  confirming with ${confirmRuns} fresh runs`);
+        const b = await baselineRevision(sql, project, cfg, rev, confirmRuns);
+        if (!b.established) { unsettled++; results.push({ candidate: key, requirement: req.id, outcome: b.lifecycle, detail: `${b.matching} matching, ${b.contradictions} contradicting confirm runs; not frozen` }); continue; }
+        await freezeRevision(sql, project.id, rev);
+        await sql`UPDATE discovery_items SET status = 'linked', linked_requirement = ${req.id} WHERE project_id = ${project.id} AND kind = 'candidate' AND key = ${key} AND status = 'candidate'`;
+        results.push({ candidate: key, requirement: req.id, outcome: 'frozen', detail: `${inferred.assertions.map((a) => `${a.path} = ${JSON.stringify(a.expected)}`).join(', ')} (${b.matching} of ${confirmRuns} confirm runs)` });
+      }
+      const frozen = results.filter((r) => r.outcome === 'frozen').length;
+      out([`\nCaptured ${frozen} of ${todo.length} control(s). Requirement files are in ${o.out}/.`, ...results.map((r) => `  ${r.outcome.padEnd(20)} ${(r.requirement ?? r.candidate).padEnd(34)} ${r.detail}`), frozen ? 'Next: `recast contract` writes the behaviour contract for the rebuild.' : ''].filter(Boolean).join('\n'), { frozen, results });
+      process.exitCode = unsettled ? EXIT.infra : EXIT.ok;
+    });
+  });
+
+program.command('check')
+  .description('Check a rebuild against every frozen requirement: compare each on a target environment and summarise (exit 1 if any is missing)')
+  .requiredOption('--target <env>', 'target environment name')
+  .option('--runs <n>', 'target runs per requirement (a confirmed gap needs ≥2)', '2')
+  .option('--requirement <id>', 'only these requirements (repeatable)', collect, [])
+  .action(async (o: { target: string; runs: string; requirement: string[] }) => {
+    await withDb(async (sql) => {
+      const { project, cfg } = await requireProject(sql);
+      const target = cfg.environments.find((e) => e.name === o.target && e.kind !== 'source');
+      if (!target) throw new UsageError(`no target environment ${o.target}`);
+      const frozen = (await db.listRevisions(sql, project.id)).filter((r) => r.frozen_at && (!o.requirement.length || o.requirement.includes(r.requirement_id)));
+      if (!frozen.length) throw new UsageError('No frozen requirements to check. Run `recast capture`, or baseline and freeze requirements first.');
+      if (!opts().json) console.log(`Check ${target.name} against ${frozen.length} frozen requirement(s), ${o.runs} runs each`);
+      const rows: Array<{ requirement: string; status: string; explanation: string }> = [];
+      for (const rev of frozen) {
+        const d = await compareRevision(sql, project, cfg, rev, target.name, Number(o.runs));
+        rows.push({ requirement: rev.requirement_id, status: d.status, explanation: d.explanation });
+      }
+      const count = (s: string) => rows.filter((r) => r.status === s).length;
+      const missing = count('missing');
+      const unsure = count('uncertain') + count('untested');
+      out([`\n${target.name}: ${count('preserved') + count('intentional_change')} preserved, ${missing} missing, ${unsure} uncertain, of ${rows.length}.`, ...rows.map((r) => `  ${r.status.toUpperCase().padEnd(18)} ${r.requirement.padEnd(30)} ${r.explanation}`)].join('\n'), { target: target.name, rows });
+      process.exitCode = missing ? EXIT.gap : unsure ? EXIT.infra : EXIT.ok;
+    });
+  });
+
+program.command('contract')
+  .description('Write the behaviour contract: every frozen requirement with its evidence, as Markdown and JSON for whoever rebuilds the app')
+  .option('--out <dir>', 'output folder', 'contract')
+  .action(async (o: { out: string }) => {
+    await withDb(async (sql) => {
+      const { project, cfg } = await requireProject(sql);
+      const c = await buildContract(sql, project.id, project.name, cfg);
+      await mkdir(o.out, { recursive: true });
+      await writeFile(resolve(o.out, 'CONTRACT.md'), contractMarkdown(c));
+      await writeFile(resolve(o.out, 'contract.json'), `${JSON.stringify(c, null, 2)}\n`);
+      out(`Wrote ${o.out}/CONTRACT.md and ${o.out}/contract.json: ${c.behaviours.length} frozen behaviour(s)${c.notFrozen.length ? `, ${c.notFrozen.length} not yet frozen` : ''} (hash ${c.hash.slice(0, 23)}…).`, { behaviours: c.behaviours.length, notFrozen: c.notFrozen.length, hash: c.hash });
     });
   });
 

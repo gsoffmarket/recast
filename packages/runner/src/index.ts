@@ -1,6 +1,7 @@
 import { Queue, Worker, QueueEvents, type Job } from 'bullmq';
 import { nowIso, redact } from '@recast/shared';
-import { compileObjective, parseRequirement, requirementHash, verifyFrozen, type NavigationBinding, type Requirement } from '@recast/behaviour-spec';
+import { compileObjective, parseDraft, parseRequirement, requirementHash, verifyFrozen, type DraftRequirement, type NavigationBinding, type Requirement } from '@recast/behaviour-spec';
+import { contentHash } from '@recast/shared';
 import { runKane, kaneBalance, locateEvidencePacks, inspectEvidencePack, type KaneEvent } from '@recast/kane-adapter';
 import { kaneFinalStateObservations, type Vars } from '@recast/observations';
 import { makeAdapters, oracleMatches, parseProjectConfig } from './adapters.ts';
@@ -30,6 +31,7 @@ export interface ProjectConfig {
   role: { username: string };
   kane: { maxSteps: number; timeoutSec: number };
   budget: { minBalance: number };
+  capture?: { subject: string };
 }
 
 export function navFor(env: EnvironmentConfig): NavigationBinding {
@@ -43,8 +45,10 @@ export interface RunJob {
   requirementId: string;
   revision: number;
   environment: string;
-  kind: 'baseline' | 'compare' | 'reverify';
+  kind: 'baseline' | 'compare' | 'reverify' | 'probe';
   idempotencyKey: string;
+  /** Probe runs only: the capture draft to perform. It is not stored as a requirement and has no assertions. */
+  draft?: unknown;
   /** Candidate commit under test (reverify runs). */
   candidateSha?: string;
 }
@@ -85,15 +89,27 @@ export async function executeRun(sql: db.Sql, job: RunJob, signal?: AbortSignal)
   const envCfg = cfg.environments.find((e) => e.name === job.environment);
   const envRow = await db.getEnvironment(sql, project.id, job.environment);
   if (!envCfg || !envRow) throw new Error(`unknown environment ${job.environment}`);
-  const rev = await db.getRevision(sql, project.id, job.requirementId, job.revision);
-  if (!rev) throw new Error(`unknown requirement ${job.requirementId} r${job.revision}`);
-
-  const req: Requirement = parseRequirement(rev.body);
-  if (rev.frozen_at) verifyFrozen({ requirement: req, hash: rev.hash, fixtureIdentity: rev.fixture_identity, frozenAt: rev.frozen_at.toISOString() });
-  else if (requirementHash(req, rev.fixture_identity) !== rev.hash) throw new Error(`stored hash mismatch for ${req.id} r${req.revision}`);
+  // A probe performs a capture draft (no assertions, not stored as a requirement) and only records
+  // what the oracle saw before and after. Every other kind runs a stored, hash-checked revision.
+  const probe = job.kind === 'probe';
+  let req: Requirement | DraftRequirement;
+  let specHash: string;
+  if (probe) {
+    if (envCfg.kind !== 'source') throw new Error('probe runs only run against the source environment');
+    req = parseDraft(job.draft);
+    specHash = `probe:${contentHash(req)}`;
+  } else {
+    const rev = await db.getRevision(sql, project.id, job.requirementId, job.revision);
+    if (!rev) throw new Error(`unknown requirement ${job.requirementId} r${job.revision}`);
+    const stored = parseRequirement(rev.body);
+    if (rev.frozen_at) verifyFrozen({ requirement: stored, hash: rev.hash, fixtureIdentity: rev.fixture_identity, frozenAt: rev.frozen_at.toISOString() });
+    else if (requirementHash(stored, rev.fixture_identity) !== rev.hash) throw new Error(`stored hash mismatch for ${stored.id} r${stored.revision}`);
+    req = stored;
+    specHash = rev.hash;
+  }
 
   const { id: runId, created } = await db.createRun(sql, {
-    project_id: project.id, kind: job.kind, environment_id: envRow.id, requirement_id: req.id, revision: req.revision, spec_hash: rev.hash, idempotency_key: job.idempotencyKey,
+    project_id: project.id, kind: job.kind, environment_id: envRow.id, requirement_id: req.id, revision: probe ? 0 : req.revision, spec_hash: specHash, idempotency_key: job.idempotencyKey,
   });
   const existing = await db.getRun(sql, runId);
   if (!created && existing && ['completed', 'infra_error', 'cancelled'].includes(existing.state)) {
@@ -111,7 +127,7 @@ export async function executeRun(sql: db.Sql, job: RunJob, signal?: AbortSignal)
     const fingerprint = await adapters.fingerprint(envCfg.apiBaseUrl ?? envCfg.baseUrl, new URL(envCfg.startPath, envCfg.baseUrl).toString());
     const uiReachable = await fetch(new URL(envCfg.startPath, envCfg.baseUrl)).then((r) => r.ok).catch(() => false);
     if (!uiReachable) throw new Error(`environment ${envCfg.name} UI is not reachable at ${envCfg.baseUrl}${envCfg.startPath}`);
-    await ev('run.started', { kind: job.kind, environment: envCfg.name, environmentKind: envCfg.kind, requirement: req.id, revision: req.revision, specHash: rev.hash, fingerprint, candidateSha: job.candidateSha ?? null });
+    await ev('run.started', { kind: job.kind, environment: envCfg.name, environmentKind: envCfg.kind, requirement: req.id, revision: probe ? 0 : req.revision, specHash, fingerprint, candidateSha: job.candidateSha ?? null });
     if (job.candidateSha) await db.updateRun(sql, runId, { candidate_sha: job.candidateSha });
     const before = await kaneBalance();
     if (before === null) throw new BudgetError('Kane balance unavailable: run `kane-cli login`.');
@@ -123,6 +139,12 @@ export async function executeRun(sql: db.Sql, job: RunJob, signal?: AbortSignal)
     vars = started.vars;
     if (started.ref) await db.updateRun(sql, runId, { fixture_ref: started.ref });
     await ev('fixture.ready', { fixture: adapters.fixtureIdentity, ref: started.ref, variables: Object.keys(vars) });
+    if (probe) {
+      // The fresh state before Kane acts, so capture can tell what the action changed.
+      const beforeObs = await adapters.observe(vars, 0);
+      await db.insertObservations(sql, runId, beforeObs.map((o) => ({ ...o, path: `before:${o.path}` })));
+      await ev('oracle.before', { adapter: adapters.oracleName, values: Object.fromEntries(beforeObs.map((o) => [o.path, o.value])) });
+    }
 
     // Execute with Kane.
     const compiled = compileObjective(req, navFor(envCfg), { ...vars, username: cfg.role.username });
@@ -156,16 +178,17 @@ export async function executeRun(sql: db.Sql, job: RunJob, signal?: AbortSignal)
 
     const after = await kaneBalance();
     const executionValid = kane.outcome === 'passed' || kane.outcome === 'did_not_pass';
-    const evaluation = evaluateRun(runId, req, obs.map((o) => ({ path: o.path, value: o.value, status: o.status })), executionValid);
+    // A probe has nothing to assert yet; its observations are evidence for capture to characterise.
+    const evaluation = probe ? null : evaluateRun(runId, req as Requirement, obs.map((o) => ({ path: o.path, value: o.value, status: o.status })), executionValid);
     const state = kane.outcome === 'cancelled' ? 'cancelled' : kane.outcome === 'did_not_start' ? 'infra_error' : 'completed';
     await db.updateRun(sql, runId, {
       state, finished_at: new Date(), kane_outcome: kane.outcome, kane_exit: kane.exitCode, kane_version: kane.cliVersion ?? null,
       kane_session_id: kane.sessionId ?? null, kane_run_id: kane.runEnd?.run_id ?? null, credits_reported: kane.runEnd?.credits_consumed ?? null,
       credits_balance_after: after, evidence_path: evidence?.path ?? null, evidence_sha256: evidence?.sha256 ?? null, evaluation,
     });
-    await ev('run.evaluated', { verdict: evaluation.verdict, assertions: evaluation.assertions, kaneOutcome: kane.outcome, kaneStatus: kane.runEnd?.status ?? null, failedSteps: kane.failedSteps });
+    if (evaluation) await ev('run.evaluated', { verdict: evaluation.verdict, assertions: evaluation.assertions, kaneOutcome: kane.outcome, kaneStatus: kane.runEnd?.status ?? null, failedSteps: kane.failedSteps });
     return {
-      runId, state, kaneOutcome: kane.outcome, verdict: evaluation.verdict,
+      runId, state, kaneOutcome: kane.outcome, verdict: evaluation?.verdict ?? null,
       observations: Object.fromEntries(obs.map((o) => [o.path, o.value])),
       creditsSpent: after !== null ? Math.round((before - after) * 100) / 100 : null, reused: false,
     };

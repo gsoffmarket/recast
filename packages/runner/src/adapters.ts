@@ -55,6 +55,8 @@ export const ProjectConfigSchema = z.object({
   kane: z.object({ maxSteps: z.number().int().min(3).max(60), timeoutSec: z.number().int().min(60).max(3600) }).strict(),
   budget: z.object({ minBalance: z.number().min(0) }).strict(),
   repair: z.record(z.unknown()).optional(),
+  /** recast capture: how to name the item each run starts with, e.g. "the order {{order_id}}". */
+  capture: z.object({ subject: z.string().min(8).max(300) }).strict().optional(),
 }).strict().superRefine((c, ctx) => {
   if (c.fixture.type !== 'trino-running-query' && !c.oracle) ctx.addIssue({ code: 'custom', path: ['oracle'], message: 'an "oracle" is required unless the fixture is the built-in Trino one' });
 });
@@ -120,4 +122,13 @@ export function oracleMatches(requirementOracle: string, oracleName: string): bo
 /** Parse a project config with readable errors. */
 export function parseProjectConfig(raw: unknown): ParsedProjectConfig {
   return ProjectConfigSchema.parse(raw);
+}
+
+/** How capture drafts name the item a run starts with: the config's capture.subject, or a default from the fixture. */
+export function captureSubject(cfg: ParsedProjectConfig): string {
+  if (cfg.capture?.subject) return cfg.capture.subject;
+  const f = cfg.fixture;
+  if (f.type === 'trino-running-query') return 'the details page of the query with ID {{query_id}}, which is currently running,';
+  if (f.type === 'http') { const first = Object.keys(f.setup.capture)[0]; if (first) return `the page for {{${first}}}`; }
+  return 'the app';
 }

@@ -121,3 +121,41 @@ export function baselineStatus(runs: RunEvaluation[], minRuns = 2): { establishe
   const contradictions = valid.length - matching;
   return { established: contradictions === 0 && matching >= minRuns, matching, contradictions };
 }
+
+// ---------- capture: infer what a legacy behaviour does ----------
+
+/** One probe run on the legacy UI: the oracle read before Kane acted, and after. */
+export interface ProbeObservations {
+  runId: string;
+  before: ObservedValue[];
+  after: ObservedValue[];
+}
+
+export interface InferredAssertions {
+  assertions: Array<{ path: string; operator: 'equals'; expected: Scalar }>;
+  /** Every observed path that did not become an assertion, and why. */
+  skipped: Array<{ path: string; reason: string }>;
+}
+
+/**
+ * Characterise a behaviour from probe runs. A path becomes an `equals` assertion only when, in every
+ * probe, it was observed before and after, the action changed it, and it ended at the same value each
+ * time. Values that differ between runs (ids, timestamps) or that the action never touched are skipped.
+ * Nothing here trusts Kane: only oracle observations count.
+ */
+export function inferAssertions(probes: ProbeObservations[]): InferredAssertions {
+  const out: InferredAssertions = { assertions: [], skipped: [] };
+  if (probes.length === 0) return out;
+  const paths = [...new Set(probes.flatMap((p) => p.after.map((o) => o.path)))].sort();
+  const one = (list: ObservedValue[], path: string) => { const m = list.filter((o) => o.path === path); return m.length === 1 ? m[0]! : undefined; };
+  for (const path of paths) {
+    const pairs = probes.map((p) => ({ before: one(p.before, path), after: one(p.after, path) }));
+    if (pairs.some((x) => !x.after || x.after.status !== 'observed')) { out.skipped.push({ path, reason: 'not observed after the action in every run' }); continue; }
+    if (pairs.some((x) => !x.before || x.before.status !== 'observed')) { out.skipped.push({ path, reason: 'no value before the action to compare with' }); continue; }
+    const finals = pairs.map((x) => x.after!.value);
+    if (finals.some((v) => !scalarEquals(v, finals[0]!))) { out.skipped.push({ path, reason: 'ended at different values in different runs' }); continue; }
+    if (pairs.some((x) => scalarEquals(x.before!.value, x.after!.value))) { out.skipped.push({ path, reason: 'the action did not change it' }); continue; }
+    out.assertions.push({ path, operator: 'equals', expected: finals[0]! });
+  }
+  return out;
+}
