@@ -24,7 +24,7 @@ recast CLI ──▶ BullMQ (Redis) ──▶ worker ──▶ fixture ─▶ Ka
 | `runner` | project config schema and adapter selection, one run end to end, the queue, the repair loop | trust the agent's claims |
 | `coding-agents` | worktrees, Claude Code driver, diff guard, build gate, candidate server | write specs or verifier code |
 | `reports` | acceptance report (markdown, JSON, CSV) | include local paths or secrets |
-| `web` | read-only workspace UI on 127.0.0.1 | mutate state or run commands |
+| `web` | read-only workspace UI on 127.0.0.1, static snapshot export, the docs page generated from the repo markdown and CLI | mutate state or run commands |
 | `cli` | `recast` commands and exit codes | duplicate verification logic |
 
 ## One run
