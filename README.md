@@ -147,7 +147,7 @@ All results measured on 25 Nov 2026 with Kane CLI 0.10.9 against `trinodb/trino:
 | **Guardrails** | Three scripted adversarial agents (rewrite the frozen spec, rewrite the frozen row in Postgres, edit outside the allowed folder) were all rejected before any re-verification; the spec stayed byte-identical. |
 | **Kane is not the judge** | In several runs Kane's own verdict was wrong: it called real gaps "agent missteps" and failed runs where the kill had happened. Recast classified every one correctly from the oracle. |
 
-Also included: a workspace UI (requirement stories with a step-by-step legacy / new / fixed comparison, Kane screenshots, the network request each version sent, a "Why?" for every verdict, discovery inbox, cost and trend), an acceptance report with real denominators, per-run credit accounting from the Kane balance, a `recast new` scaffolder with a config-only HTTP fixture and oracle for other apps, whole-app capture with a behaviour contract and a one-command `check` for CI, 75 unit tests and CI.
+Also included: a workspace UI (requirement stories with a step-by-step legacy / new / fixed comparison, Kane screenshots, the network request each version sent, a "Why?" for every verdict, discovery inbox, cost and trend), an acceptance report with real denominators, per-run credit accounting from the Kane balance, a `recast new` scaffolder with a config-only HTTP fixture and oracle for other apps, whole-app capture with a behaviour contract and a one-command `check` for CI, 78 unit tests and CI.
 
 ## Reproduce it
 
