@@ -123,62 +123,94 @@ Also included: a workspace UI (requirement stories with a step-by-step legacy / 
 
 ## Reproduce it
 
+This section rebuilds every result above on your own computer, step by step. You run Trino 481 locally (it has both the old and the new UI), and Recast finds the missing Kill button, fixes it with Claude Code, and proves the fix. Each step says what it does and what you should see.
+
 ### Prerequisites
 
-- Node 24 and pnpm 9
-- Docker (Docker Desktop or Colima)
-- Kane CLI 0.10.9: `npm install -g @testmuai/kane-cli`, then `kane-cli login`
-- For repair: Claude Code (`claude`) logged in
+| You need | Why |
+|---|---|
+| Node 24 and pnpm 9 | Recast is a TypeScript project that Node runs directly. |
+| Docker (Docker Desktop or Colima) | Runs Recast's database (Postgres) and job queue (Redis), and the Trino app being tested. |
+| Kane CLI 0.10.9: `npm install -g @testmuai/kane-cli`, then `kane-cli login` | Kane is the tester that clicks through the UI. It runs on your TestMu account and spends your Kane credits. |
+| Claude Code (`claude`), signed in | Only for the repair step. It is the coding agent that writes the fix, on your Claude plan. |
 
 ### Quick start
 
+These commands download Recast, start its services and the Trino app, and check that everything is connected.
+
 ```bash
 git clone https://github.com/gsoffmarket/recast.git && cd recast
-pnpm install
-cp .env.example .env          # set RECAST_PG_PASSWORD and the matching DATABASE_URL
-docker-compose up -d          # Postgres 17 + Redis 7 on localhost
-docker run -d --name recast-trino -p 8080:8080 trinodb/trino:481
-pnpm recast init --config evaluation/trino/recast.config.json
-pnpm recast doctor            # checks database, queue, Kane CLI, credits, environments
+pnpm install                  # install Recast's dependencies
+cp .env.example .env          # local settings: choose RECAST_PG_PASSWORD and put the same value in DATABASE_URL
+docker-compose up -d          # start Postgres 17 and Redis 7 on localhost
+docker run -d --name recast-trino -p 8080:8080 trinodb/trino:481   # the app under test, on http://localhost:8080
+pnpm recast init --config evaluation/trino/recast.config.json      # load the Trino setup into Recast
+pnpm recast doctor            # checks database, queue, Kane CLI, credits and both UIs
 ```
 
-Start the worker in a second terminal with `pnpm worker`, and the workspace UI with `pnpm ui` (http://127.0.0.1:4173). To publish a read-only snapshot of your results, run `pnpm recast export-site --out site` and deploy the folder to any static host (the live demo uses Vercel).
+`doctor` prints one line per check, marked PASS, WARN or FAIL. A FAIL line ends with the command that fixes it. The `env.trino-preview-candidate` line shows WARN until the repair step starts the patched UI, which is expected.
+
+Then open two more terminals in the same folder:
+
+- `pnpm worker` runs the jobs. Leave it running: the commands below queue work and this process carries it out.
+- `pnpm ui` starts the dashboard at http://127.0.0.1:4173, where you can watch runs live and see screenshots and verdicts.
+
+To publish a read-only copy of your results like the live site, run `pnpm recast export-site --out site` and upload the folder to any static host (the live site uses Vercel).
 
 ### Reproduce the Trino results
 
+Run these in order. Each Kane run opens a real browser, takes a few minutes and spends Kane credits.
+
+**1. Explore the old UI** (optional). Kane maps Trino's classic UI and suggests requirements, including the Kill and Preempt buttons.
+
 ```bash
-# 1. Observe: map the classic UI with Kane and import it
 pnpm recast discover run --max-leases 8
-pnpm recast discover list
+pnpm recast discover list     # the screens, controls and candidate requirements Kane found
+```
 
-# 2. Specify, baseline and freeze
+**2. Prove and lock the requirement.** Add "kill a running query from the web UI", have Kane do it twice on the old UI (Trino's API must confirm the query was killed both times), then lock it.
+
+```bash
 pnpm recast requirements add evaluation/trino/requirements/REQ-QRY-CANCEL.json
-pnpm recast baseline --requirement REQ-QRY-CANCEL --runs 2
-pnpm recast freeze   --requirement REQ-QRY-CANCEL
+pnpm recast baseline --requirement REQ-QRY-CANCEL --runs 2     # expect: established, 2 of 2
+pnpm recast freeze   --requirement REQ-QRY-CANCEL              # locks it with a SHA-256 hash
+```
 
-# 3. Compare against the new UI
-pnpm recast compare  --requirement REQ-QRY-CANCEL --target trino-preview --runs 2
+**3. Check the new UI.** Kane tries the same task on Trino's new preview UI twice. Expect **Missing**: the query is still running because the new UI has no Kill button. The command exits with code 1, which means a confirmed gap.
 
-# 4. Repair (fetch the target source once, then run the loop)
+```bash
+pnpm recast compare --requirement REQ-QRY-CANCEL --target trino-preview --runs 2
+```
+
+**4. Let Claude Code fix it.** First download the new UI's source code once (only the folder the agent may edit). Then `repair` gives Claude Code the evidence, checks its change builds, and re-runs the locked requirement with Kane on the patched UI. Expect **verified**: the query is killed 2 of 2, and every requirement already marked Preserved still passes.
+
+```bash
 git clone --depth 1 --branch 481 --filter=blob:none --sparse https://github.com/trinodb/trino.git evaluation/trino/checkouts/trino-481
 git -C evaluation/trino/checkouts/trino-481 sparse-checkout set core/trino-web-ui/src/main/resources/webapp-preview
 (cd evaluation/trino/checkouts/trino-481/core/trino-web-ui/src/main/resources/webapp-preview && npm ci)
 pnpm recast repair --requirement REQ-QRY-CANCEL --max-attempts 3
-
-# 5. Evidence
-pnpm recast status
-pnpm recast report --format markdown
 ```
 
-The equivalence control and the second gap follow the same steps with `REQ-QRY-OWNER.json` and `REQ-QRY-PREEMPT.json`. The adversarial checks need no model and no credits:
+The fix stays on a local branch of that checkout for you to review. Recast never merges or deploys it.
+
+**5. See the evidence.**
 
 ```bash
-pnpm recast repair --requirement REQ-QRY-CANCEL --max-attempts 1 --simulate-agent tamper-spec
-pnpm recast repair --requirement REQ-QRY-CANCEL --max-attempts 1 --simulate-agent tamper-db
-pnpm recast repair --requirement REQ-QRY-CANCEL --max-attempts 1 --simulate-agent edit-outside-src
+pnpm recast status                    # every requirement and its current verdict
+pnpm recast report --format markdown  # the acceptance report
 ```
 
-Kane runs cost credits (about 25–65 per run in this case, measured from the balance before and after each run; an 8-lease exploration cost about 141). Exit codes: 0 ok, 1 confirmed gap, 2 invalid configuration, 3 inconclusive or infrastructure, 4 cancelled.
+The other two results use the same steps with different requirement files: `REQ-QRY-OWNER.json` (a feature both UIs have, which should come out **Preserved**) and `REQ-QRY-PREEMPT.json` (the second missing button).
+
+**Try to cheat it.** These scripted "bad agents" try to edit the locked requirement, edit the database, or change files they are not allowed to. Each should be **rejected** before any re-check, with the locked files restored. They need no AI and no Kane credits. Repair only runs on a requirement whose latest result is Missing, so run them on REQ-QRY-PREEMPT after its steps 2 and 3, before you repair it.
+
+```bash
+pnpm recast repair --requirement REQ-QRY-PREEMPT --max-attempts 1 --simulate-agent tamper-spec
+pnpm recast repair --requirement REQ-QRY-PREEMPT --max-attempts 1 --simulate-agent tamper-db
+pnpm recast repair --requirement REQ-QRY-PREEMPT --max-attempts 1 --simulate-agent edit-outside-src
+```
+
+Cost: each Kane run used about 25–65 credits here, measured from the balance before and after; an 8-lease exploration used about 141. Exit codes for every command: 0 ok, 1 confirmed gap, 2 invalid configuration, 3 inconclusive or infrastructure problem, 4 cancelled.
 
 ### Use it on your own app
 
