@@ -58,6 +58,8 @@ Yes, and your own accounts. Recast does not ship or host any AI itself.
 3. **Write one small file per feature:** what a user wants done ("cancel this order using only the web page") and the expected result (`status equals "cancelled"`).
 4. **Run the commands in order:** `baseline`, `freeze`, `compare`, then optionally `repair`, then `report`. A web dashboard shows the same results as the [live site](https://recast-sooty.vercel.app).
 
+**Rebuilding an app from scratch?** You can freeze the old app's behaviour before the new one exists. `recast capture` tries every button Kane found on the old app, works out from your API what each one does, confirms it twice more and locks it. `recast contract` then writes those behaviours as a document for whoever does the rebuild, and `recast check` tests the rebuild against all of them in one command.
+
 In one sentence: you list what the old app does, Recast proves it, locks it and checks the new app against it, and an AI fix only counts when your app's own API says it works.
 
 ## The problem
@@ -119,7 +121,7 @@ All results measured on 25 Nov 2026 with Kane CLI 0.10.9 against `trinodb/trino:
 | **Guardrails** | Three scripted adversarial agents (rewrite the frozen spec, rewrite the frozen row in Postgres, edit outside the allowed folder) were all rejected before any re-verification; the spec stayed byte-identical. |
 | **Kane is not the judge** | In several runs Kane's own verdict was wrong: it called real gaps "agent missteps" and failed runs where the kill had happened. Recast classified every one correctly from the oracle. |
 
-Also included: a workspace UI (requirement stories with a step-by-step legacy / new / fixed comparison, Kane screenshots, the network request each version sent, a "Why?" for every verdict, discovery inbox, cost and trend), an acceptance report with real denominators, per-run credit accounting from the Kane balance, a `recast new` scaffolder with a config-only HTTP fixture and oracle for other apps, 61 unit tests and CI.
+Also included: a workspace UI (requirement stories with a step-by-step legacy / new / fixed comparison, Kane screenshots, the network request each version sent, a "Why?" for every verdict, discovery inbox, cost and trend), an acceptance report with real denominators, per-run credit accounting from the Kane balance, a `recast new` scaffolder with a config-only HTTP fixture and oracle for other apps, 75 unit tests and CI.
 
 ## Reproduce it
 
@@ -221,6 +223,16 @@ pnpm recast new ../my-app-parity --legacy-url http://localhost:3000 --new-url ht
 ```
 
 This writes a validated `recast.config.json`, an example requirement and the next commands to run. Point the fixture at the API call that creates a fresh record, point the oracle at the call that reads its state, then `init`, `doctor`, baseline, freeze, compare and repair as above. The full walkthrough is in [docs/your-own-app.md](docs/your-own-app.md).
+
+To freeze a whole legacy app before rebuilding it, skip writing requirements and let Recast capture them from what Kane discovered:
+
+```bash
+pnpm recast discover run          # Kane maps the legacy UI
+pnpm recast capture --dry-run     # what would be captured, and how many Kane runs it costs
+pnpm recast capture --yes         # probe each control, infer its effect from your API, confirm twice, freeze
+pnpm recast contract              # the behaviour contract for the rebuild: contract/CONTRACT.md and contract.json
+pnpm recast check --target new    # test the rebuild against every frozen behaviour (exit 1 if any is missing)
+```
 
 ## Project structure
 

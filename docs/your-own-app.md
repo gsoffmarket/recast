@@ -105,7 +105,25 @@ pnpm recast report --format markdown
 
 `init` validates the config and explains any mistake by field. `doctor` checks the database, queue, Kane CLI, credits, the config, and that every UI responds.
 
-## 5. Let a coding agent repair gaps (optional)
+## 5. Or freeze the whole legacy app at once
+
+Instead of writing each requirement by hand, let Recast capture them. After `recast discover run`, `recast capture` takes every state-changing control Kane found (buttons such as Cancel, Delete or Archive) and, for each one:
+
+1. Drafts a requirement: what the user does, with no expected result yet.
+2. Runs it on the legacy UI (two probe runs by default), reading your oracle **before** and **after** Kane acts.
+3. Keeps as the expected result only what the action changed, to the same value in every run. Ids and timestamps that differ between runs are dropped.
+4. Confirms that result with two fresh runs, then freezes it. A control with no visible effect in the API is reported, not frozen.
+
+```bash
+pnpm recast capture --dry-run      # the drafts and how many Kane runs they need; runs nothing
+pnpm recast capture --yes          # spend the credits: probe, confirm and freeze
+pnpm recast contract               # contract/CONTRACT.md and contract/contract.json for the rebuild
+pnpm recast check --target new     # later: check the rebuild against every frozen behaviour
+```
+
+Each control costs four Kane runs by default. The drafted intent reads "Open {subject} and use its "{control}" control, using only the web UI." Set `"capture": { "subject": "the order {{order_id}}" }` in the config to say how a person names the item each run starts with. Captured requirement files are written to `captured/` so you can review them, and `check` exits 1 when any behaviour is missing, so it fits a CI job.
+
+## 6. Let a coding agent repair gaps (optional)
 
 Add a `repair` section like the one in [evaluation/trino/recast.config.json](../evaluation/trino/recast.config.json):
 - a git checkout of the new UI and the folder the agent may edit
