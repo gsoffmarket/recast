@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { parseRequirement, requirementHash, verifyFrozen, compileObjective, FrozenSpecTamperError } from '@recast/behaviour-spec';
+import { parseRequirement, requirementHash, verifyFrozen, compileObjective, FrozenSpecTamperError, parseDraft } from '@recast/behaviour-spec';
 
 const raw = JSON.parse(readFileSync(new URL('../../../evaluation/trino/requirements/REQ-QRY-CANCEL.json', import.meta.url), 'utf8'));
 
@@ -45,5 +45,16 @@ describe('compileObjective', () => {
   });
   it('fails when an input is missing', () => {
     expect(() => compileObjective(req, { startUrl: 'http://h/', hints: [] }, {})).toThrow(/query_id/);
+  });
+});
+
+describe('capture drafts', () => {
+  const base = { id: 'REQ-CAP-X-KILL', revision: 1, objective: 'A user can kill it', role: 'u', fixture: 'f', action_intent: 'Open {{id}} and kill it', oracle: 'o', provenance: 'source-observed' };
+  it('accepts a draft with no assertions but never one with assertions', () => {
+    expect(parseDraft(base).assertions).toEqual([]);
+    expect(() => parseDraft({ ...base, assertions: [{ path: 'a', operator: 'equals', expected: 1 }] })).toThrow();
+  });
+  it('still refuses a requirement with no assertions', () => {
+    expect(() => parseRequirement({ ...base, assertions: [] })).toThrow();
   });
 });
