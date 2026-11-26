@@ -536,6 +536,72 @@ h2.big { font-size: clamp(26px, 3.4vw, 40px); line-height: 1.1; letter-spacing: 
   .funnel b { font-size: 26px; } .funnel .f { padding: 14px 16px; }
   .panel > .head { flex-wrap: wrap; row-gap: 4px; } .panel > .head .id { font-size: 11.5px; }
 }
+
+/* ---- docs page ---- */
+.doc-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.doc-card { display: grid; gap: 8px; align-content: start; padding: 20px; border-radius: var(--r-md); background: radial-gradient(140% 120% at 0% 0%, rgba(128,82,255,.10), transparent 60%), var(--bg-surface-2); border: 1px solid var(--border-subtle); color: inherit; text-decoration: none; transition: transform var(--base) var(--ease-out), border-color var(--base) ease; }
+.doc-card:hover { transform: translateY(-2px); border-color: var(--border-strong); text-decoration: none; }
+.doc-card b { font-weight: 500; font-size: 16px; color: var(--text-primary); }
+.doc-card > span:not(.gi):not(.go) { font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
+.doc-card .go { font-size: 13px; color: var(--iris-text); }
+.doc-card .gi, .doc-head .gi { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: var(--bg-selected); color: var(--iris-text); }
+.doc-card .gi svg, .doc-head .gi svg { width: 16px; height: 16px; }
+.docs { display: grid; grid-template-columns: 232px minmax(0, 1fr); gap: 48px; align-items: start; }
+.toc { display: grid; gap: 4px; font-size: 13px; }
+.toc-d { position: sticky; top: 80px; max-height: calc(100vh - 100px); overflow: auto; padding-right: 8px; scrollbar-width: thin; }
+.toc-label { font: 600 11px/1 var(--font-sans); letter-spacing: .48px; text-transform: uppercase; color: var(--text-tertiary); padding: 0 10px 8px; }
+.toc a { display: block; padding: 6px 10px; border-radius: var(--r-sm); color: var(--text-secondary); text-decoration: none; transition: background var(--fast) ease, color var(--fast) ease; }
+.toc a:hover { background: var(--bg-hover); color: var(--text-primary); text-decoration: none; }
+.toc .toc-sec > a { color: var(--text-primary); font-weight: 500; }
+.toc .toc-sec > a.on { background: var(--bg-selected); color: var(--iris-text); }
+.toc-sub { display: grid; margin: 2px 0 6px 10px; padding-left: 8px; border-left: 1px solid var(--border-subtle); }
+.toc-sub a { padding: 4px 10px; font-size: 12.5px; }
+.toc-m { display: none; }
+.doc-body { display: grid; gap: 56px; min-width: 0; }
+.doc-sec { display: grid; gap: 18px; scroll-margin-top: 80px; min-width: 0; }
+.doc-head { display: grid; grid-template-columns: 34px 1fr; gap: 14px; align-items: start; padding-bottom: 14px; border-bottom: 1px solid var(--border-subtle); }
+.doc-head h2 { font-size: 26px; font-weight: 400; letter-spacing: -0.02em; color: var(--text-display); }
+.doc-head p { margin: 4px 0 0; color: var(--text-secondary); font-size: 14px; }
+.doc-sec .src { justify-self: start; font-size: 12.5px; color: var(--text-tertiary); }
+.doc-sec .src:hover { color: var(--text-primary); }
+.prose { font-size: 15px; line-height: 1.7; color: var(--text-secondary); min-width: 0; }
+.prose > * + * { margin-top: 14px; }
+.prose p, .prose ul, .prose ol { margin: 0; }
+.prose ul, .prose ol { padding-left: 22px; display: grid; gap: 6px; }
+.prose strong { color: var(--text-primary); font-weight: 500; }
+.prose a { color: var(--iris-text); }
+.prose h3 { margin-top: 32px; font-size: 18px; font-weight: 500; color: var(--text-primary); scroll-margin-top: 80px; }
+.prose h4 { margin-top: 24px; font-size: 15px; font-weight: 500; color: var(--text-primary); scroll-margin-top: 80px; }
+.prose code { font: 400 .88em/1.4 var(--font-mono); padding: 1px 6px; border-radius: 5px; background: var(--bg-surface-3); color: var(--text-primary); overflow-wrap: anywhere; }
+.prose pre { position: relative; margin: 0; padding: 16px 18px; border-radius: var(--r-md); background: var(--bg-surface-1); border: 1px solid var(--border-default); overflow-x: auto; font: 400 12.5px/1.7 var(--font-mono); color: var(--text-primary); }
+.prose pre + * { margin-top: 14px; }
+.prose pre code { padding: 0; background: none; font: inherit; overflow-wrap: normal; white-space: pre; }
+.prose pre .copy { position: sticky; float: right; left: 100%; top: 0; margin: -6px -8px 0 12px; }
+.prose .table { overflow-x: auto; border: 1px solid var(--border-subtle); border-radius: var(--r-md); }
+.prose table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.prose th, .prose td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--border-subtle); vertical-align: top; }
+.prose th { color: var(--text-primary); font-weight: 500; background: var(--bg-surface-2); }
+.prose tr:last-child td { border-bottom: 0; }
+.prose .def { font: 400 11.5px/1 var(--font-mono); color: var(--text-tertiary); margin-left: 6px; white-space: nowrap; }
+.cmd-doc { display: grid; gap: 10px; padding: 18px 0; border-top: 1px solid var(--border-subtle); }
+.cmd-doc > * + * { margin-top: 0 !important; }
+.cmd-doc h3 { margin: 0; font-size: 16px; } .cmd-doc h3 code { font-size: 14px; background: var(--bg-selected); color: var(--iris-text); }
+.cmd-doc .table td:first-child { width: 36%; }
+@media (max-width: 900px) {
+  .doc-cards { grid-template-columns: 1fr; }
+  .docs { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .toc-d { display: none; }
+  .toc-m { display: block; position: sticky; top: 64px; z-index: 5; border: 1px solid var(--border-default); border-radius: var(--r-md); background: rgba(14,14,14,.96); backdrop-filter: blur(8px); }
+  .toc-m > summary { padding: 12px 16px; color: var(--text-primary); font-size: 14px; display: flex; justify-content: space-between; }
+  .toc-m > summary::after { content: "▾"; color: var(--text-tertiary); }
+  .toc-m[open] > summary::after { content: "▴"; }
+  .toc-m .toc { padding: 0 8px 12px; max-height: 60vh; overflow: auto; }
+  .toc-m .toc-label { display: none; }
+  .doc-body { gap: 44px; }
+  .doc-head h2 { font-size: 22px; }
+  .prose { font-size: 14.5px; }
+  .doc-sec, .prose h3, .prose h4 { scroll-margin-top: 130px; }
+}
 </style>
 </head>
 <body>
@@ -550,6 +616,7 @@ h2.big { font-size: clamp(26px, 3.4vw, 40px); line-height: 1.1; letter-spacing: 
     <nav aria-label="Main">
       <a href="#/parity" data-view="parity">Requirements</a>
       <a href="#/discovery" data-view="discovery">Discovery</a>
+      <a href="#/docs" data-view="docs">Docs</a>
     </nav>
     <div class="bar-right">
       <span class="snap" id="snap"></span>
@@ -560,6 +627,7 @@ h2.big { font-size: clamp(26px, 3.4vw, 40px); line-height: 1.1; letter-spacing: 
    <nav class="mnav" id="mnav" aria-label="Menu" hidden>
     <a href="#/parity" data-view="parity">Requirements</a>
     <a href="#/discovery" data-view="discovery">Discovery</a>
+    <a href="#/docs" data-view="docs">Docs</a>
     <div class="mnav-reports" id="mnav-reports"></div>
     <div class="mnav-snap" id="mnav-snap"></div>
    </nav>
@@ -760,7 +828,7 @@ async function landing() {
       h('div', { style: 'display:grid;gap:14px;align-content:start' }, h('div', { class: 'eyebrow' }, 'Reproduce it'),
         h('h2', { class: 'big' }, 'Every number on this page comes from commands you can run.'),
         h('p', { class: 'sec' }, `Trino 481 in Docker, Kane CLI ${r.versions.kaneCli ?? ''}, Postgres and Redis. The three cheating checks need no model and no credits. For your own app, the recast new command scaffolds a project, and apps with an HTTP API need no code.`),
-        h('div', { class: 'cta' }, h('a', { class: 'btn-line', href: `${REPO}#reproduce-it`, target: '_blank', rel: 'noopener' }, 'Full instructions ↗'), h('a', { class: 'btn-ghost', href: `${REPO}/blob/main/docs/your-own-app.md`, target: '_blank', rel: 'noopener' }, 'Use it on your own app ↗'))),
+        h('div', { class: 'cta' }, h('a', { class: 'btn-line', href: '#/docs/quick-start' }, 'Read the docs'), h('a', { class: 'btn-ghost', href: '#/docs/own-app' }, 'Use it on your own app →'))),
       term(['# freeze what the legacy UI does', 'pnpm recast baseline --requirement REQ-QRY-CANCEL --runs 2', 'pnpm recast freeze --requirement REQ-QRY-CANCEL', '# check the new UI against it', 'pnpm recast compare --requirement REQ-QRY-CANCEL --target trino-preview --runs 2', '# let a coding agent fix the gap, then re-verify', 'pnpm recast repair --requirement REQ-QRY-CANCEL --max-attempts 3', 'pnpm recast report --format markdown'])),
     h('section', { class: 'closer' },
       h('h2', {}, 'Ship the rewrite without losing what users rely on.'),
@@ -770,7 +838,7 @@ async function landing() {
     h('p', { class: 'muted', style: 'font-size:12.5px' }, `Snapshot of real local runs (Kane CLI ${r.versions.kaneCli ?? ''}, trinodb/trino:481). Reproduce it with the commands in the README.`),
     h('footer', { class: 'foot' },
       h('div', { class: 'brand-f' }, h('b', {}, 'Recast'), h('span', {}, 'Behaviour parity for UI migrations')),
-      h('nav', { 'aria-label': 'Footer' }, h('a', { href: '#/parity' }, 'Requirements'), h('a', { href: '#/discovery' }, 'Discovery'), h('a', { href: REPO, target: '_blank', rel: 'noopener' }, 'GitHub'), h('a', { href: `${REPO}/blob/main/LICENSE`, target: '_blank', rel: 'noopener' }, 'Apache-2.0')),
+      h('nav', { 'aria-label': 'Footer' }, h('a', { href: '#/parity' }, 'Requirements'), h('a', { href: '#/discovery' }, 'Discovery'), h('a', { href: '#/docs' }, 'Docs'), h('a', { href: REPO, target: '_blank', rel: 'noopener' }, 'GitHub'), h('a', { href: `${REPO}/blob/main/LICENSE`, target: '_blank', rel: 'noopener' }, 'Apache-2.0')),
       h('span', { class: 'muted' }, 'Built with Kane CLI by TestMu AI')),
   );
 }
@@ -1012,6 +1080,46 @@ async function discovery() {
   );
 }
 
+// ---------- docs ----------
+const DOC_ICON = { 'quick-start': 'play', 'own-app': 'code', cli: 'pen', 'how-it-works': 'search', reproduce: 'flag', architecture: 'lock' };
+function scrollToDoc(id) {
+  const el = id && document.getElementById(id);
+  if (el) el.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+  else scrollTo(0, 0);
+}
+async function docs(anchor) {
+  await shell('docs');
+  const d = await api('/api/docs');
+  const src = (path) => h('a', { class: 'src', href: `${REPO}/blob/main/${path}`, target: '_blank', rel: 'noopener' }, `Source: ${path} ↗`);
+  const tocLinks = (cls) => h('nav', { class: cls, 'aria-label': 'Documentation contents' }, h('div', { class: 'toc-label' }, 'On this page'),
+    d.sections.map((sec) => h('div', { class: 'toc-sec' }, h('a', { href: `#/docs/${sec.id}`, 'data-sec': sec.id }, sec.title),
+      sec.headings.length && sec.id !== 'cli' ? h('div', { class: 'toc-sub' }, sec.headings.map((x) => h('a', { href: `#/docs/${x.id}` }, x.title))) : null)));
+  const body = (sec) => {
+    const prose = h('div', { class: 'prose' });
+    prose.innerHTML = sec.html; // generated at export by the escaping renderer in packages/web/src/docs.ts
+    prose.querySelectorAll('pre').forEach((pre) => {
+      const b = h('button', { class: 'copy', type: 'button', onclick: () => { navigator.clipboard?.writeText((pre.querySelector('code') || pre).textContent); b.textContent = 'Copied'; setTimeout(() => (b.textContent = 'Copy'), 1400); } }, 'Copy');
+      pre.prepend(b);
+    });
+    return h('section', { class: 'doc-sec', id: sec.id }, h('div', { class: 'doc-head' }, h('span', { class: 'gi' }, svg(GLYPH[DOC_ICON[sec.id] || 'code'])), h('div', {}, h('h2', {}, sec.title), h('p', {}, sec.lead))), prose, src(sec.source));
+  };
+  const pick = ['quick-start', 'own-app', 'cli'].map((id) => d.sections.find((x) => x.id === id)).filter(Boolean);
+  page().replaceChildren(
+    h('div', {}, h('div', { class: 'eyebrow' }, 'Documentation'), h('h1', {}, 'Recast docs'),
+      h('p', { class: 'lede' }, 'Set Recast up, point it at your own app and look up any command. This page is generated from the repository\'s README, guides and the CLI itself, so it always matches the code.')),
+    h('div', { class: 'doc-cards' }, pick.map((sec) => h('a', { class: 'doc-card', href: `#/docs/${sec.id}` }, h('span', { class: 'gi' }, svg(GLYPH[DOC_ICON[sec.id]])), h('b', {}, sec.title), h('span', {}, sec.lead), h('span', { class: 'go' }, 'Read →')))),
+    h('details', { class: 'toc-m' }, h('summary', {}, 'On this page'), tocLinks('toc')),
+    h('div', { class: 'docs' }, tocLinks('toc toc-d'), h('div', { class: 'doc-body' }, d.sections.map(body))),
+  );
+  // Highlight the section being read.
+  const links = [...document.querySelectorAll('.toc-d [data-sec]')];
+  const spy = new IntersectionObserver((entries) => {
+    for (const e of entries) if (e.isIntersecting) links.forEach((a) => a.classList.toggle('on', a.dataset.sec === e.target.id));
+  }, { rootMargin: '-20% 0px -70% 0px' });
+  document.querySelectorAll('.doc-sec').forEach((el) => spy.observe(el));
+  if (anchor) setTimeout(() => scrollToDoc(anchor), 60);
+}
+
 // ---------- report menu ----------
 function reportMenu() {
   const wrap = h('div', { class: 'menu' });
@@ -1027,17 +1135,20 @@ function reportMenu() {
 async function route() {
   const hash = location.hash.replace(/^#\/?/, '');
   const [view, ...rest] = hash.split('/');
+  if (view === 'docs' && currentView === 'docs' && document.querySelector('.doc-body')) { document.querySelector('.toc-m')?.removeAttribute('open'); scrollToDoc(rest[0]); return; }
   loading();
   try {
     if (!view) await (SNAP ? landing() : home());
     else if (view === 'parity') await home();
     else if (view === 'requirements' && rest[0]) await requirement(decodeURIComponent(rest[0]));
     else if (view === 'discovery') await discovery();
+    else if (view === 'docs') await docs(rest[0]);
     else notFound();
     const h1 = $('#page h1'); if (h1 && !firstRoute) { h1.setAttribute('tabindex', '-1'); h1.focus({ preventScroll: true }); }
     firstRoute = false;
     motion();
-    scrollTo(0, 0);
+    currentView = view || 'home';
+    if (!(view === 'docs' && rest[0])) scrollTo(0, 0);
   } catch (e) { errorView(e); }
 }
 $('#report-slot').replaceWith(reportMenu());
@@ -1090,6 +1201,7 @@ function motion() {
   page().querySelectorAll('.numbers > div > b, .stat .v').forEach((b) => { const card = b.parentElement.closest('.numbers > div, .stat'); if (card && !card.classList.contains('rv') && card.getBoundingClientRect().top < vh) countUp(b); });
 }
 let firstRoute = true;
+let currentView = null;
 addEventListener('hashchange', route);
 route();
 
