@@ -160,7 +160,7 @@ This section rebuilds every result above on your own computer, step by step. You
 | Node 24 and pnpm 9 | Recast is a TypeScript project that Node runs directly. |
 | Docker (Docker Desktop or Colima) | Runs Recast's database (Postgres) and job queue (Redis), and the Trino app being tested. |
 | Kane CLI 0.10.9: `npm install -g @testmuai/kane-cli`, then `kane-cli login` | Kane is the tester that clicks through the UI. It runs on your TestMu account and spends your Kane credits. |
-| Claude Code (`claude`), signed in | Only for the repair step. It is the coding agent that writes the fix, on your Claude plan. |
+| Claude Code (`claude`), signed in | Only for the repair step. It is the coding agent that writes the fix, on your Claude plan. Set `CLAUDE_BIN` if `claude` is not on your PATH. Other coding agents (Codex, Cursor and others) are not supported yet. |
 
 ### Quick start
 
