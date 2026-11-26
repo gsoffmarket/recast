@@ -31,7 +31,7 @@ Think of moving house. Before the move you list everything the old house had. Af
 1. **Explore** (optional). Kane browses the **old** screens and suggests features worth protecting, such as "running queries have a Kill button".
 2. **Prove and lock.** Kane uses that feature on the old screens **twice**, and the API confirms it worked both times. Recast then **locks** the requirement with a fingerprint (a SHA-256 hash), and the database refuses any edit to it. Nobody can quietly change the rule later, the AI included.
 3. **Compare.** Kane tries the same task on the **new** screens. The API says the query is still running, twice. That is a confirmed gap, marked **Missing**.
-4. **Repair.** Recast gives Claude Code the evidence: Kane's failed steps, its screenshots, and the request the old screen sent to the server. Claude Code works on a **separate copy** of the new app's code, can only edit the folder you allow, and cannot touch Recast's own files. Its change must build cleanly.
+4. **Repair.** Recast gives Claude Code the evidence: Kane's failed steps, its screenshots, and the request the old screen sent to the server. Claude Code works on a **separate copy** of the new app's code. When it finishes, Recast inspects every change: an edit outside the folder you allow gets the attempt rejected, and an edit to Recast's own requirement or checking files is undone and rejected too. The change must also build cleanly.
 5. **Verify.** Kane retries the same locked requirement on the **patched** app, twice. The fix is accepted only if the API confirms both runs **and** every feature that already worked still works. Anything else is rejected.
 
 ```
