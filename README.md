@@ -11,7 +11,7 @@ Recast is a behaviour-parity tool for UI migrations. It uses [Kane CLI](https://
 
 It also works before a rebuild exists: `recast capture` freezes what the legacy app does, with no hand-written expectations, `recast contract` hands that behaviour to whoever does the rebuild, and `recast check` tests the rebuild against all of it.
 
-Built for the KaneCLI Online Hackathon by TestMu AI. **Live results:** [recast-sooty.vercel.app](https://recast-sooty.vercel.app), a read-only snapshot of the workspace from real local runs. **Docs:** [recast-sooty.vercel.app/#/docs](https://recast-sooty.vercel.app/#/docs), generated from this README, the guides in `docs/` and the CLI's own command definitions.
+Built for the KaneCLI Online Hackathon by TestMu AI. **Demo video (4:52):** [youtu.be/FCHDoNG2tXY](https://youtu.be/FCHDoNG2tXY). **Live results:** [recast-sooty.vercel.app](https://recast-sooty.vercel.app), a read-only snapshot of the workspace from real local runs. **Docs:** [recast-sooty.vercel.app/#/docs](https://recast-sooty.vercel.app/#/docs), generated from this README, the guides in `docs/` and the CLI's own command definitions.
 
 ## Recast in plain terms
 
