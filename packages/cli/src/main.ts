@@ -12,7 +12,7 @@ import { scaffoldProject } from './scaffold.ts';
 import { fileURLToPath } from 'node:url';
 import { writeFile } from 'node:fs/promises';
 import { buildReport, toCsv, toMarkdown } from '@recast/reports';
-import { startWebServer, exportStaticSite } from '@recast/web';
+import { startWebServer, exportStaticSite, buildDocs, describeCli } from '@recast/web';
 import { latestRunDir, readRunMap, suggestCandidates, type DiscoveryMap } from '@recast/discovery';
 import { spawn } from 'node:child_process';
 import { mkdir } from 'node:fs/promises';
@@ -394,12 +394,19 @@ program.command('report')
     });
   });
 
+/** Docs for the site: cut from the repo's markdown and this CLI's own command definitions. */
+const REPO_ROOT = resolve(fileURLToPath(new URL('../../..', import.meta.url)));
+const docsProvider = () => buildDocs(REPO_ROOT, {
+  commands: describeCli(program),
+  globals: program.options.map((o) => ({ flags: o.flags, description: o.description ?? '', ...(o.defaultValue !== undefined && o.long !== '--project' ? { defaultValue: o.defaultValue } : {}) })),
+});
+
 program.command('ui')
   .description('Serve the read-only workspace UI on 127.0.0.1')
   .option('--port <n>', 'port', '4173')
   .action(async (o: { port: string }) => {
     const sql = db.connect();
-    const { url } = startWebServer(sql, opts().project, Number(o.port));
+    const { url } = startWebServer(sql, opts().project, Number(o.port), docsProvider);
     console.log(`Recast workspace: ${url}  (read-only; Ctrl-C to stop)`);
   });
 
@@ -408,7 +415,7 @@ program.command('export-site')
   .option('--out <dir>', 'output directory', 'site')
   .action(async (o: { out: string }) => {
     await withDb(async (sql) => {
-      const r = await exportStaticSite(sql, opts().project, resolve(o.out));
+      const r = await exportStaticSite(sql, opts().project, resolve(o.out), docsProvider);
       out(`Wrote ${r.files} files to ${o.out} (snapshot ${r.generatedAt}).`, r);
     });
   });
