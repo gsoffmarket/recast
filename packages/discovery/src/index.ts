@@ -99,3 +99,47 @@ export async function readRunMap(runDir: string, explorationId: string | null): 
 }
 
 export const redactUrl = (u: string) => redact(u);
+
+// ---------- capture: candidate → draft requirement ----------
+
+export interface CaptureContext {
+  fixture: string;
+  oracle: string;
+  /** How a person would name the item each run starts with, e.g. "the details page of the query with ID {{query_id}}". */
+  subject: string;
+  settleMs?: number;
+}
+
+/** A stable requirement id for a captured control: REQ-CAP-<SCREEN>-<CONTROL>, uppercase, ≤ 64 chars. */
+export function captureRequirementId(c: CandidateSuggestion): string {
+  const part = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  const control = part(c.title.match(/^"([^"]+)"/)?.[1] ?? c.title).slice(0, 24) || 'CONTROL';
+  const screen = part((c.screen ?? '').replace(/\s*[-–—|]\s*.*$/, '')).slice(0, 24) || 'APP';
+  return `REQ-CAP-${screen}-${control}`.slice(0, 64).replace(/-+$/, '');
+}
+
+/**
+ * Draft a requirement for a state-changing control Kane found. The draft has no assertions: capture
+ * infers them from probe runs. Returns null for kinds capture does not handle (verified flows have no
+ * single observable effect to characterise).
+ */
+export function draftFromCandidate(c: CandidateSuggestion, ctx: CaptureContext): Record<string, unknown> | null {
+  if (c.kind !== 'state_changing_control') return null;
+  const control = c.title.match(/^"([^"]+)"/)?.[1] ?? c.title;
+  const where = c.screen ? ` on ${c.screen}` : '';
+  return {
+    id: captureRequirementId(c),
+    revision: 1,
+    objective: `A user can use the "${control}" control${where} in the web UI`.slice(0, 300),
+    role: 'web-ui-user',
+    fixture: ctx.fixture,
+    inputs: {},
+    action_intent: `Open ${ctx.subject} and use its "${control}" control, using only the web UI.`.slice(0, 600),
+    oracle: ctx.oracle,
+    settle_ms: ctx.settleMs ?? 10_000,
+    assertions: [],
+    provenance: 'source-observed',
+    scope: ['captured'],
+    source_evidence: [`discovery:${c.key}`],
+  };
+}
