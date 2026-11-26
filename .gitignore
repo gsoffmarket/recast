@@ -76,3 +76,7 @@ Thumbs.db
 
 # Static snapshot output (recast export-site)
 /site/
+
+# recast capture and contract output
+/captured/
+/contract/
