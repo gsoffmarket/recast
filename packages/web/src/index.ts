@@ -153,7 +153,10 @@ async function streamEvents(req: IncomingMessage, res: ServerResponse, sql: db.S
   res.end();
 }
 
-export function startWebServer(sql: db.Sql, projectName: string, port = 4173) {
+export * from './docs.ts';
+import type { DocsBundle } from './docs.ts';
+
+export function startWebServer(sql: db.Sql, projectName: string, port = 4173, docs?: () => Promise<DocsBundle>) {
   const server = createServer(async (req, res) => {
     try {
       const url = new URL(req.url ?? '/', 'http://localhost');
@@ -169,6 +172,7 @@ export function startWebServer(sql: db.Sql, projectName: string, port = 4173) {
       let m = p.match(/^\/api\/requirements\/(REQ-[A-Z0-9-]+)$/);
       if (m) { const d = await requirementStory(sql, projectName, m[1]!); return d ? json(res, 200, d) : json(res, 404, { error: 'unknown requirement' }); }
       if (p === '/api/history') return json(res, 200, await history(sql, projectName));
+      if (p === '/api/docs') return docs ? json(res, 200, await docs()) : json(res, 404, { error: 'docs not available' });
       if (p === '/api/report.json' || p === '/api/report.csv') {
         const pr = await db.getProject(sql, projectName);
         const rep = pr ? await buildReport(sql, pr.id, pr.name) : null;
@@ -206,7 +210,7 @@ export function startWebServer(sql: db.Sql, projectName: string, port = 4173) {
  * event streams as replayable JSON. Everything passes through redact() first (home paths, share links,
  * UI tokens). Used to publish a read-only snapshot of real results, e.g. on Vercel.
  */
-export async function exportStaticSite(sql: db.Sql, projectName: string, outDir: string): Promise<{ files: number; generatedAt: string }> {
+export async function exportStaticSite(sql: db.Sql, projectName: string, outDir: string, docs?: () => Promise<DocsBundle>): Promise<{ files: number; generatedAt: string }> {
   const generatedAt = new Date().toISOString();
   await rm(outDir, { recursive: true, force: true });
   let files = 0;
@@ -233,6 +237,7 @@ export async function exportStaticSite(sql: db.Sql, projectName: string, outDir:
   await put('data/report.json', JSON.stringify(rep, null, 2));
   await put('data/report.csv', toCsv(rep));
   await put('data/history.json', await history(sql, projectName));
+  if (docs) await put('data/docs.json', await docs());
   for (const r of await db.listRevisions(sql, project.id)) {
     const d = await requirementStory(sql, projectName, r.requirement_id);
     await put(`data/requirements/${r.requirement_id}.json`, d);
