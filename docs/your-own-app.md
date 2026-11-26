@@ -140,6 +140,8 @@ Each control costs four Kane runs by default. The drafted intent reads "Open {su
 
 ## 6. Let a coding agent repair gaps (optional)
 
+Repair uses **Claude Code**, Anthropic's coding agent. Install it and sign in once on the machine that runs Recast, so the `claude` command works in a terminal. Recast runs it headless on your own account and Claude plan; Recast itself includes no AI and stores no AI keys. If `claude` is not on your PATH, set `CLAUDE_BIN` to its full path. Other coding agents (Codex, Cursor, Copilot and others) are not supported yet. Without Claude Code everything else still works: Recast finds, proves and reports gaps, and you fix them yourself.
+
 Add a `repair` section like the one in [evaluation/trino/recast.config.json](../evaluation/trino/recast.config.json):
 - a git checkout of the new UI and the folder the agent may edit
 - the commands that build and check it
