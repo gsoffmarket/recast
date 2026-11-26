@@ -173,9 +173,11 @@ export async function buildDocs(root: string, cli: { commands: CliCommandInfo[];
   const sections: DocsSection[] = [
     md('plain', 'Recast in plain terms', 'What Recast does, who does what, and whose AI it uses, without the jargon.', 'README.md', extractSection(readme, 'Recast in plain terms')),
     md('quick-start', 'Quick start', 'Install, start the services and check everything with recast doctor.', 'README.md', quick),
-    md('how-it-works', 'How it works', 'Observe, freeze, compare, repair and prove: the loop and how it is built.', 'README.md', extractSection(readme, 'How it works')),
-    md('own-app', 'Use it on your own app', 'Describe your app in JSON with recast new. Apps with an HTTP API need no code.', 'docs/your-own-app.md', stripTitle(ownApp), 1),
-    md('reproduce', 'Reproduce the Trino results', 'The exact commands behind every number on this site.', 'README.md', extractSection(readme, 'Reproduce the Trino results')),
+    // Capture has its own section, so it is cut out of How it works rather than shown twice.
+    md('how-it-works', 'How it works', 'Observe, freeze, compare, repair and prove: the loop and how it is built.', 'README.md', extractSection(readme, 'How it works').replace(`### Freezing a whole app before a rebuild\n\n${extractSection(readme, 'Freezing a whole app before a rebuild')}`, '')),
+    md('capture', 'Freeze an app before a rebuild', 'Capture what the legacy app does with no hand-written expectations, hand it over as a contract, and check the rebuild.', 'README.md', extractSection(readme, 'Freezing a whole app before a rebuild')),
+    md('own-app', 'Use it on your own app', 'Describe your app in JSON with recast new, then write requirements or capture them. Apps with an HTTP API need no code.', 'docs/your-own-app.md', stripTitle(ownApp), 1),
+    md('reproduce', 'Reproduce the Trino results', 'The exact commands behind every number on this site.', 'README.md', `${extractSection(readme, 'Reproduce the Trino results')}\n\n### Reproduce the capture result\n\n${extractSection(readme, 'Reproduce the capture result')}`),
     { id: 'cli', title: 'CLI reference', lead: 'Every recast command and option, read from the CLI itself.', source: 'packages/cli/src/main.ts', ...cliDoc },
     md('architecture', 'Architecture', 'Packages, one run end to end, classification and the repair loop.', 'docs/architecture.md', stripTitle(arch), 1),
   ];
