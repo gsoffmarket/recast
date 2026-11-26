@@ -100,6 +100,8 @@ pnpm recast compare  --requirement REQ-ITEM-ARCHIVE --target new --runs 2
 pnpm recast report --format markdown
 \`\`\`
 
+To freeze the legacy app's behaviour without writing requirements, run \`pnpm recast discover run\`, then \`pnpm recast capture --dry-run\` to see the drafts and \`pnpm recast capture --yes\` to capture them. \`pnpm recast contract\` writes the result for whoever rebuilds the app, and \`pnpm recast check --target new\` tests a rebuild against every frozen requirement.
+
 \`recast discover run\` maps the legacy UI with Kane Exploration and suggests more requirements. To let a coding agent repair gaps, add a \`repair\` section modelled on \`evaluation/trino/recast.config.json\`.
 `;
   return {
