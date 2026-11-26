@@ -11,6 +11,55 @@ Recast is a behaviour-parity tool for UI migrations. It uses [Kane CLI](https://
 
 Built for the KaneCLI Online Hackathon by TestMu AI. **Live results:** [recast-sooty.vercel.app](https://recast-sooty.vercel.app), a read-only snapshot of the workspace from real local runs. **Docs:** [recast-sooty.vercel.app/#/docs](https://recast-sooty.vercel.app/#/docs), generated from this README, the guides in `docs/` and the CLI's own command definitions.
 
+## Recast in plain terms
+
+When a team rebuilds an app's screens, some features quietly go missing. **Recast finds what went missing, gets an AI coding agent to put it back, and refuses the fix until it is proven to work.**
+
+Think of moving house. Before the move you list everything the old house had. After the move you check the new house against that list. When something is missing, a builder adds it, and an inspector checks the work before you sign it off.
+
+### Who does what
+
+| Role | Played by | Job |
+|---|---|---|
+| The tester | **Kane CLI**, TestMu's AI browser agent | Opens the app in a real browser and tries a task the way a person would, for example "stop this running query". |
+| The referee | **The app's own API** | Says what really happened, for example "the query's state is now FAILED, so it was killed". Recast trusts this, not Kane's opinion. |
+| The builder | **Claude Code**, on your own computer | Writes the code that puts a missing feature back. |
+| The manager | **Recast** | Keeps the list, runs every step in order, stores every result and decides pass or fail. |
+
+### The five steps, with the real Trino example
+
+1. **Explore** (optional). Kane browses the **old** screens and suggests features worth protecting, such as "running queries have a Kill button".
+2. **Prove and lock.** Kane uses that feature on the old screens **twice**, and the API confirms it worked both times. Recast then **locks** the requirement with a fingerprint (a SHA-256 hash), and the database refuses any edit to it. Nobody can quietly change the rule later, the AI included.
+3. **Compare.** Kane tries the same task on the **new** screens. The API says the query is still running, twice. That is a confirmed gap, marked **Missing**.
+4. **Repair.** Recast gives Claude Code the evidence: Kane's failed steps, its screenshots, and the request the old screen sent to the server. Claude Code works on a **separate copy** of the new app's code, can only edit the folder you allow, and cannot touch Recast's own files. Its change must build cleanly.
+5. **Verify.** Kane retries the same locked requirement on the **patched** app, twice. The fix is accepted only if the API confirms both runs **and** every feature that already worked still works. Anything else is rejected.
+
+```
+old app ──Kane + API──▶ locked requirement ──Kane + API──▶ new app: "Missing"
+                                                                │
+                              Claude Code writes a fix ◀────────┘
+                                         │
+                   Kane + API re-check ──▶ accepted only if proven, nothing else broken
+```
+
+### Does it use my own AI agent?
+
+Yes, and your own accounts. Recast does not ship or host any AI itself.
+
+- **Kane CLI** runs under your TestMu login and spends your Kane credits.
+- **Claude Code** is the `claude` program already installed and signed in on your computer, so repairs run on your Claude plan.
+- The repair step drives **Claude Code** today. Other coding agents are not wired in yet.
+- **Repair is optional.** Without it, Recast still finds, proves and reports gaps, and you fix them yourself.
+
+### What you set up
+
+1. **Install once:** Node 24, pnpm, Docker (it runs Recast's database and job queue), Kane CLI, and Claude Code if you want repairs.
+2. **Describe your app in one file.** `pnpm recast new` writes `recast.config.json`, where you fill in four things: where the old app runs, where the new app runs, how to create a fresh test item for each run (for example "POST to /api/orders"), and how to read the real result (for example "GET /api/orders/123 and read `status`"). If your app has an HTTP API, this is configuration only, with no code.
+3. **Write one small file per feature:** what a user wants done ("cancel this order using only the web page") and the expected result (`status equals "cancelled"`).
+4. **Run the commands in order:** `baseline`, `freeze`, `compare`, then optionally `repair`, then `report`. A web dashboard shows the same results as the [live site](https://recast-sooty.vercel.app).
+
+In one sentence: you list what the old app does, Recast proves it, locks it and checks the new app against it, and an AI fix only counts when your app's own API says it works.
+
 ## The problem
 
 Teams rebuild legacy front ends all the time: a new framework, a redesign, a "preview" UI that will replace the old one. The visible screens get rebuilt; the behaviour hidden in them often does not. A button that kills a stuck job, a permission check, an edge case in a form: these live in the old app's behaviour, not in any spec, and they quietly disappear in the rewrite. Coding agents make rewrites faster, which makes this worse: an agent rebuilds what it is shown, not what it was never told.
