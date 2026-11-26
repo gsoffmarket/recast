@@ -9,6 +9,8 @@
 
 Recast is a behaviour-parity tool for UI migrations. It uses [Kane CLI](https://www.testmuai.com/kane-cli/) to observe a working legacy web app, turns what the app does into frozen, hashed requirements, finds what a replacement UI has lost, hands each confirmed gap to a coding agent, and accepts the agent's patch only after Kane and an independent oracle show the original requirement passing on the new code.
 
+It also works before a rebuild exists: `recast capture` freezes what the legacy app does, with no hand-written expectations, `recast contract` hands that behaviour to whoever does the rebuild, and `recast check` tests the rebuild against all of it.
+
 Built for the KaneCLI Online Hackathon by TestMu AI. **Live results:** [recast-sooty.vercel.app](https://recast-sooty.vercel.app), a read-only snapshot of the workspace from real local runs. **Docs:** [recast-sooty.vercel.app/#/docs](https://recast-sooty.vercel.app/#/docs), generated from this README, the guides in `docs/` and the CLI's own command definitions.
 
 ## Recast in plain terms
@@ -66,7 +68,7 @@ In one sentence: you list what the old app does, Recast proves it, locks it and 
 
 Teams rebuild legacy front ends all the time: a new framework, a redesign, a "preview" UI that will replace the old one. The visible screens get rebuilt; the behaviour hidden in them often does not. A button that kills a stuck job, a permission check, an edge case in a form: these live in the old app's behaviour, not in any spec, and they quietly disappear in the rewrite. Coding agents make rewrites faster, which makes this worse: an agent rebuilds what it is shown, not what it was never told.
 
-Recast is for engineering teams and agencies running a migration who need to know, with evidence, what the new UI still does, what it has lost, and whether a fix really restores it.
+Recast is for engineering teams and agencies running a migration who need to know, with evidence, what the new UI still does, what it has lost, and whether a fix really restores it. It is also for teams about to rebuild an app that has no spec: they can freeze the old app's behaviour first and hold the rebuild, written by people or by coding agents, to it.
 
 ### A real example
 
@@ -92,6 +94,29 @@ Recast is for engineering teams and agencies running a migration who need to kno
 3. **Compare.** The same intent runs on the new UI through `kane-cli run --agent`. A deterministic classifier reads the oracle, never Kane's own pass/fail, and needs two consistent failing runs to call a gap Missing. An equivalent UI comes out Preserved.
 4. **Repair.** The coding agent (Claude Code, headless) gets a briefing built only from evidence: the frozen requirement, the legacy UI's observed browser steps and network effect (from Kane's evidence pack), and the new UI's failing steps. It works in a sparse git worktree of the target with an explicit tool allowlist and no web, git or MCP access.
 5. **Verify independently.** Recast rejects changes outside the allowed folder and any change to its own verifier or specs, runs the target's build gate, commits the candidate, serves it, and re-runs the same frozen requirement with Kane and the oracle. Every previously preserved requirement is re-checked on the candidate so a fix cannot break something else.
+
+### Freezing a whole app before a rebuild
+
+Writing requirements by hand does not scale to a whole app, and a team rebuilding from scratch has no new UI to compare against yet. Capture builds the requirements from the legacy app alone:
+
+```
+ Kane Exploration ─▶ state-changing controls ─▶ draft requirement (intent only, no expected result)
+                                                        │ probe ×2 on the legacy UI
+                     oracle read BEFORE Kane acts ──────┤
+                     oracle read AFTER Kane acts  ──────┘
+                                                        ▼
+             expected result = what the action changed, to the same value in every probe
+                                                        │ 2 fresh baseline runs must satisfy it
+                                                        ▼
+                         FROZEN requirement ─▶ recast contract (CONTRACT.md + contract.json)
+                                            └─▶ recast check --target <rebuild> (exit 1 on any gap)
+```
+
+1. **Draft.** `recast capture` turns each state-changing control Kane Exploration found into a requirement with an intent ("open the query … and use its Kill control") and no assertions.
+2. **Probe.** Kane performs the draft on the legacy UI twice. Each probe reads the oracle once before Kane acts and once after.
+3. **Infer.** A value becomes an assertion only when the action changed it, to the same value in both probes. Ids and timestamps that differ between runs, values the action did not touch, and page readings with no before value are skipped with a reason.
+4. **Confirm and freeze.** Two fresh baseline runs must satisfy the inferred assertions before the requirement is frozen, so nothing is established from the runs it was inferred from. A control with no observable effect, or whose probes do not complete, is reported and never frozen.
+5. **Hand over and hold.** `recast contract` writes every frozen behaviour with its evidence and Kane's legacy steps for the rebuild team or coding agent. `recast check` later compares every frozen requirement on the rebuild and exits 1 if any is missing, so it can gate CI.
 
 ### How it is built
 
@@ -122,7 +147,7 @@ All results measured on 25 Nov 2026 with Kane CLI 0.10.9 against `trinodb/trino:
 | **Guardrails** | Three scripted adversarial agents (rewrite the frozen spec, rewrite the frozen row in Postgres, edit outside the allowed folder) were all rejected before any re-verification; the spec stayed byte-identical. |
 | **Kane is not the judge** | In several runs Kane's own verdict was wrong: it called real gaps "agent missteps" and failed runs where the kill had happened. Recast classified every one correctly from the oracle. |
 
-Also included: a workspace UI (requirement stories with a step-by-step legacy / new / fixed comparison, Kane screenshots, the network request each version sent, a "Why?" for every verdict, discovery inbox, cost and trend), an acceptance report with real denominators, per-run credit accounting from the Kane balance, a `recast new` scaffolder with a config-only HTTP fixture and oracle for other apps, 75 unit tests and CI.
+Also included: a workspace UI (requirement stories with a step-by-step legacy / new / fixed comparison, Kane screenshots, the network request each version sent, a "Why?" for every verdict, discovery inbox, cost and trend), an acceptance report with real denominators, per-run credit accounting from the Kane balance, a `recast new` scaffolder with a config-only HTTP fixture and oracle for other apps, whole-app capture with a behaviour contract and a one-command `check` for CI, 75 unit tests and CI.
 
 ## Reproduce it
 
@@ -215,6 +240,18 @@ pnpm recast repair --requirement REQ-QRY-PREEMPT --max-attempts 1 --simulate-age
 
 Cost: each Kane run used about 25–65 credits here, measured from the balance before and after; an 8-lease exploration used about 141. Exit codes for every command: 0 ok, 1 confirmed gap, 2 invalid configuration, 3 inconclusive or infrastructure problem, 4 cancelled.
 
+### Reproduce the capture result
+
+This re-derives the Kill behaviour with no hand-written expectation. It needs the exploration from step 1, and takes 4 Kane runs (116.87 credits when measured). Kill is already covered by REQ-QRY-CANCEL, so `--include-linked` is needed to capture it again.
+
+```bash
+pnpm recast capture --dry-run --include-linked                      # the drafts and the run count; runs nothing
+pnpm recast capture --include-linked --candidate "control:localhost:8080/ui/query.html:kill" --yes
+pnpm recast contract                                                # contract/CONTRACT.md and contract/contract.json
+```
+
+Expect the two probe runs to read the query as `RUNNING` before Kane acts and `FAILED / ADMINISTRATIVELY_KILLED` after, capture to infer exactly those two values, both confirm runs to be satisfied, and `REQ-CAP-QUERY-OVERVIEW-KILL` to be frozen. Its requirement file is written to `captured/`. If you use `pnpm worker`, restart it after upgrading so it knows the probe run kind.
+
 ### Use it on your own app
 
 Apps with an HTTP API need no code: the fixture (a fresh starting state per run) and the oracle (the real outcome) are declared in JSON.
@@ -242,23 +279,23 @@ packages/
   cli/             recast command
   behaviour-spec/  requirement schema, frozen hash, objective compilation
   kane-adapter/    kane-cli runner, NDJSON parser, evidence packs
-  discovery/       Kane Exploration import and candidates
+  discovery/       Kane Exploration import, candidates and capture drafts
   observations/    oracles and fixtures
-  parity/          comparators and classifier
-  runner/          runs, queue, repair loop, candidate checks
+  parity/          comparators, classifier and capture inference
+  runner/          runs (including capture probes), queue, repair loop, candidate checks
   coding-agents/   worktrees, Claude Code driver, guards, build gate
   db/              Postgres schema and migrations
-  reports/         acceptance report
+  reports/         acceptance report and behaviour contract
   web/             read-only workspace UI
 evaluation/trino/  reference case config and requirements
-docs/              architecture
+docs/              architecture and the guide for your own app
 ```
 
 - [Architecture](docs/architecture.md) · [Contributing](CONTRIBUTING.md) · [Security and agent containment](SECURITY.md)
 
 ## Scope
 
-Recast verifies the requirements in scope and reports real denominators; it does not certify whole-app parity, deploy or merge. The bundled fixture and oracle target Trino; other apps need their own (see above).
+Recast verifies the requirements in scope and reports real denominators; it does not certify whole-app parity, deploy or merge. Capture covers state-changing controls Kane discovers whose effect your oracle can read; flows and read-only behaviour still need requirements written by hand. The bundled fixture and oracle target Trino; other apps need their own (see above).
 
 ## Licence and attribution
 
