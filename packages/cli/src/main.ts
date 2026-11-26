@@ -7,6 +7,7 @@ import { parseDraft, parseRequirement, requirementHash, lifecycleAfterBaseline, 
 import { kaneVersion, kaneAuthenticated, kaneBalance, TESTED_KANE_VERSION } from '@recast/kane-adapter';
 import { evaluateRun, baselineStatus, classify, inferAssertions, type ObservedValue, type ProbeObservations, type RunEvaluation } from '@recast/parity';
 import * as db from '@recast/db';
+import { claudeCodeStatus, TESTED_CLAUDE_VERSION } from '@recast/coding-agents';
 import { createQueue, createQueueEvents, enqueueAndWait, startWorker, executeRun, runRepair, verifyCandidateRef, makeAdapters, oracleMatches, parseProjectConfig, captureSubject, type ProjectConfig, type RunJob, type RunSummary } from '@recast/runner';
 import { scaffoldProject } from './scaffold.ts';
 import { fileURLToPath } from 'node:url';
@@ -137,7 +138,7 @@ program.command('init')
   });
 
 program.command('doctor')
-  .description('Preflight: database, queue, Kane CLI, credits and environments')
+  .description('Preflight: database, queue, Kane CLI, credits, Claude Code (for repair) and environments')
   .action(async () => {
     const checks: Array<{ check: string; status: 'pass' | 'fail' | 'inconclusive'; detail: string; action?: string }> = [];
     const add = (check: string, status: 'pass' | 'fail' | 'inconclusive', detail: string, action?: string) => checks.push({ check, status, detail, ...(action ? { action } : {}) });
@@ -149,6 +150,13 @@ program.command('doctor')
       add('kane.version', v ? (v === TESTED_KANE_VERSION ? 'pass' : 'inconclusive') : 'fail', v ? `kane-cli ${v} (tested ${TESTED_KANE_VERSION})` : 'kane-cli not found', v ? undefined : 'npm install -g @testmuai/kane-cli');
       const auth = await kaneAuthenticated();
       add('kane.auth', auth ? 'pass' : 'fail', auth ? 'authenticated' : 'not logged in', auth ? undefined : 'kane-cli login');
+      // The coding agent is only needed for repair, so a missing or signed-out Claude Code is a warning, not a failure.
+      const cc = await claudeCodeStatus();
+      if (!cc.found) add('agent.claude', 'inconclusive', `Claude Code not found${process.env.CLAUDE_BIN ? ` at CLAUDE_BIN=${process.env.CLAUDE_BIN}` : ''} (only needed for repair)`, 'npm install -g @anthropic-ai/claude-code, or set CLAUDE_BIN');
+      else {
+        add('agent.claude', 'pass', `Claude Code ${cc.version} (tested ${TESTED_CLAUDE_VERSION})`);
+        add('agent.claude.auth', cc.loggedIn ? 'pass' : 'inconclusive', cc.loggedIn ? `signed in${cc.authMethod ? ` (${cc.authMethod})` : ''}` : cc.loggedIn === false ? 'not signed in (only needed for repair)' : 'sign-in status unknown', cc.loggedIn ? undefined : 'run `claude` once and sign in');
+      }
       const p = await db.getProject(sql, opts().project).catch(() => undefined);
       const cfg = p?.config as ProjectConfig | undefined;
       const bal = auth ? await kaneBalance() : null;

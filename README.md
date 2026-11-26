@@ -147,7 +147,7 @@ All results measured on 25 Nov 2026 with Kane CLI 0.10.9 against `trinodb/trino:
 | **Guardrails** | Three scripted adversarial agents (rewrite the frozen spec, rewrite the frozen row in Postgres, edit outside the allowed folder) were all rejected before any re-verification; the spec stayed byte-identical. |
 | **Kane is not the judge** | In several runs Kane's own verdict was wrong: it called real gaps "agent missteps" and failed runs where the kill had happened. Recast classified every one correctly from the oracle. |
 
-Also included: a workspace UI (requirement stories with a step-by-step legacy / new / fixed comparison, Kane screenshots, the network request each version sent, a "Why?" for every verdict, discovery inbox, cost and trend), an acceptance report with real denominators, per-run credit accounting from the Kane balance, a `recast new` scaffolder with a config-only HTTP fixture and oracle for other apps, whole-app capture with a behaviour contract and a one-command `check` for CI, 75 unit tests and CI.
+Also included: a workspace UI (requirement stories with a step-by-step legacy / new / fixed comparison, Kane screenshots, the network request each version sent, a "Why?" for every verdict, discovery inbox, cost and trend), an acceptance report with real denominators, per-run credit accounting from the Kane balance, a `recast new` scaffolder with a config-only HTTP fixture and oracle for other apps, whole-app capture with a behaviour contract and a one-command `check` for CI, 78 unit tests and CI.
 
 ## Reproduce it
 
@@ -162,6 +162,16 @@ This section rebuilds every result above on your own computer, step by step. You
 | Kane CLI 0.10.9: `npm install -g @testmuai/kane-cli`, then `kane-cli login` | Kane is the tester that clicks through the UI. It runs on your TestMu account and spends your Kane credits. |
 | Claude Code (`claude`), signed in | Only for the repair step. It is the coding agent that writes the fix, on your Claude plan. Set `CLAUDE_BIN` if `claude` is not on your PATH. Other coding agents (Codex, Cursor and others) are not supported yet. |
 
+**Set up Claude Code** (only needed for repair):
+
+```bash
+npm install -g @anthropic-ai/claude-code   # or follow https://code.claude.com/docs/en/setup
+claude                                     # first run: sign in with your Claude account (subscription or Anthropic Console), then type /exit
+claude --version                           # Recast was tested with 2.1.332
+```
+
+Once Recast is set up, `pnpm recast doctor` shows `agent.claude` and `agent.claude.auth` as PASS.
+
 ### Quick start
 
 These commands download Recast, start its services and the Trino app, and check that everything is connected.
@@ -173,10 +183,10 @@ cp .env.example .env          # local settings: choose RECAST_PG_PASSWORD and pu
 docker-compose up -d          # start Postgres 17 and Redis 7 on localhost
 docker run -d --name recast-trino -p 8080:8080 trinodb/trino:481   # the app under test, on http://localhost:8080
 pnpm recast init --config evaluation/trino/recast.config.json      # load the Trino setup into Recast
-pnpm recast doctor            # checks database, queue, Kane CLI, credits and both UIs
+pnpm recast doctor            # checks database, queue, Kane CLI, credits, Claude Code and both UIs
 ```
 
-`doctor` prints one line per check, marked PASS, WARN or FAIL. A FAIL line ends with the command that fixes it. The `env.trino-preview-candidate` line shows WARN until the repair step starts the patched UI, which is expected.
+`doctor` prints one line per check, marked PASS, WARN or FAIL. A FAIL line ends with the command that fixes it. The `env.trino-preview-candidate` line shows WARN until the repair step starts the patched UI, which is expected. The `agent.claude` lines show WARN if Claude Code is missing or signed out; that only matters for repair.
 
 Then open two more terminals in the same folder:
 

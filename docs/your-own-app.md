@@ -110,7 +110,7 @@ pnpm recast compare  --requirement REQ-ORD-CANCEL --target new --runs 2      # t
 pnpm recast report --format markdown
 ```
 
-`init` validates the config and explains any mistake by field. `doctor` checks the database, queue, Kane CLI, credits, the config, and that every UI responds.
+`init` validates the config and explains any mistake by field. `doctor` checks the database, queue, Kane CLI, credits, the config, that every UI responds, and whether Claude Code is installed and signed in (a warning only, since it is needed just for repair).
 
 Once several requirements are frozen, check them all in one command instead of one `compare` at a time:
 
@@ -141,6 +141,16 @@ Each control costs four Kane runs by default. The drafted intent reads "Open {su
 ## 6. Let a coding agent repair gaps (optional)
 
 Repair uses **Claude Code**, Anthropic's coding agent. Install it and sign in once on the machine that runs Recast, so the `claude` command works in a terminal. Recast runs it headless on your own account and Claude plan; Recast itself includes no AI and stores no AI keys. If `claude` is not on your PATH, set `CLAUDE_BIN` to its full path. Other coding agents (Codex, Cursor, Copilot and others) are not supported yet. Without Claude Code everything else still works: Recast finds, proves and reports gaps, and you fix them yourself.
+
+**Set up Claude Code** (only needed for repair):
+
+```bash
+npm install -g @anthropic-ai/claude-code   # or follow https://code.claude.com/docs/en/setup
+claude                                     # first run: sign in with your Claude account (subscription or Anthropic Console), then type /exit
+claude --version                           # Recast was tested with 2.1.332
+```
+
+Once Recast is set up, `pnpm recast doctor` shows `agent.claude` and `agent.claude.auth` as PASS.
 
 Add a `repair` section like the one in [evaluation/trino/recast.config.json](../evaluation/trino/recast.config.json):
 - a git checkout of the new UI and the folder the agent may edit

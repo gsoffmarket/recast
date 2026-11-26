@@ -190,3 +190,34 @@ export async function startViteServer(appPath: string, port: number, readyPath: 
   await stop();
   throw new Error(`vite did not become ready on ${port}: ${log}`);
 }
+
+// ---------- preflight: is Claude Code installed and signed in? ----------
+
+/** The Claude Code version Recast's repair loop was run with. */
+export const TESTED_CLAUDE_VERSION = '2.1.332';
+
+export interface ClaudeCodeStatus { found: boolean; version: string | null; loggedIn: boolean | null; authMethod: string | null }
+
+/** "2.1.332 (Claude Code)" → "2.1.332". */
+export function parseClaudeVersion(stdout: string): string | null {
+  return stdout.match(/\b(\d+\.\d+\.\d+)\b/)?.[1] ?? null;
+}
+
+/** Reads only loggedIn and authMethod from `claude auth status`, never account details. */
+export function parseClaudeAuth(stdout: string): { loggedIn: boolean | null; authMethod: string | null } {
+  try {
+    const j = JSON.parse(stdout.slice(stdout.indexOf('{')));
+    return { loggedIn: typeof j.loggedIn === 'boolean' ? j.loggedIn : null, authMethod: typeof j.authMethod === 'string' ? j.authMethod : null };
+  } catch {
+    return { loggedIn: null, authMethod: null };
+  }
+}
+
+/** Check the coding agent the same way repair will start it (CLAUDE_BIN, else `claude`). */
+export async function claudeCodeStatus(bin = process.env.CLAUDE_BIN ?? 'claude', cwd = process.cwd()): Promise<ClaudeCodeStatus> {
+  const v = await exec(bin, ['--version'], { cwd, timeoutMs: 20_000 }).catch(() => null);
+  const version = v && v.code === 0 ? parseClaudeVersion(v.stdout) : null;
+  if (!version) return { found: false, version: null, loggedIn: null, authMethod: null };
+  const a = await exec(bin, ['auth', 'status'], { cwd, timeoutMs: 20_000 }).catch(() => null);
+  return { found: true, version, ...(a ? parseClaudeAuth(a.stdout) : { loggedIn: null, authMethod: null }) };
+}
