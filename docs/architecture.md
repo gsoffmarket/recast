@@ -37,6 +37,8 @@ recast CLI ──▶ BullMQ (Redis) ──▶ worker ──▶ fixture ─▶ Ka
 6. Cancel any leftover query through REST (logged, and distinguishable from a UI kill).
 7. Record the evidence pack hash, the balance after, and the evaluation.
 
+A capture probe follows the same steps with a draft instead of a stored revision. It runs on the source environment only, reads the oracle once right after the fixture starts (stored as `before:` observations), and is never evaluated.
+
 ## Classification
 
 `classify` takes the requirement, source runs and target runs. It returns Untested without an established baseline or target runs, Uncertain when any observation is missing or runs disagree, Missing only after two consistent failing target runs, and Preserved or Intentional change when all target runs satisfy the assertions. Kane's own `run_end` status is evidence, never an input.
