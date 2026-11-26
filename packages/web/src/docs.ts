@@ -168,9 +168,10 @@ export async function buildDocs(root: string, cli: { commands: CliCommandInfo[];
     const r = renderMarkdown(text, { fromFile: source, idPrefix: id, headingLevelOffset: offset });
     return { id, title, lead, source, html: r.html, headings: r.headings };
   };
-  const quick = `### Prerequisites\n\n${extractSection(readme, 'Prerequisites')}\n\n### Set up\n\n${extractSection(readme, 'Quick start')}`;
+  const quick = `${extractSection(readme, 'Reproduce it').split('\n### ')[0]}\n\n### Prerequisites\n\n${extractSection(readme, 'Prerequisites')}\n\n### Set up\n\n${extractSection(readme, 'Quick start')}`;
   const cliDoc = renderCli(cli.commands, cli.globals);
   const sections: DocsSection[] = [
+    md('plain', 'Recast in plain terms', 'What Recast does, who does what, and whose AI it uses, without the jargon.', 'README.md', extractSection(readme, 'Recast in plain terms')),
     md('quick-start', 'Quick start', 'Install, start the services and check everything with recast doctor.', 'README.md', quick),
     md('how-it-works', 'How it works', 'Observe, freeze, compare, repair and prove: the loop and how it is built.', 'README.md', extractSection(readme, 'How it works')),
     md('own-app', 'Use it on your own app', 'Describe your app in JSON with recast new. Apps with an HTTP API need no code.', 'docs/your-own-app.md', stripTitle(ownApp), 1),

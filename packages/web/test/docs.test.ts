@@ -43,10 +43,11 @@ describe('extractSection', () => {
 describe('buildDocs', () => {
   it('builds every section from the real repo files', async () => {
     const d = await buildDocs(process.cwd(), { commands: [{ name: 'doctor', usage: 'recast doctor', description: 'Preflight', options: [] }], globals: [{ flags: '--json', description: 'machine-readable output' }] });
-    expect(d.sections.map((s) => s.id)).toEqual(['quick-start', 'how-it-works', 'own-app', 'reproduce', 'cli', 'architecture']);
+    expect(d.sections.map((s) => s.id)).toEqual(['plain', 'quick-start', 'how-it-works', 'own-app', 'reproduce', 'cli', 'architecture']);
     for (const s of d.sections) expect(s.html.length, s.id).toBeGreaterThan(300);
     const all = d.sections.map((s) => s.html).join('\n');
-    expect(all).toContain('pnpm recast compare  --requirement REQ-QRY-CANCEL --target trino-preview --runs 2');
+    expect(all).toContain('pnpm recast compare --requirement REQ-QRY-CANCEL --target trino-preview --runs 2');
+    expect(all).toContain('Does it use my own AI agent?');
     expect(all).toContain('pnpm recast new');
     expect(all).not.toMatch(/<script/i);
   });
