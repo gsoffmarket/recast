@@ -2,6 +2,13 @@
 
 Recast needs four things from your app: where the legacy UI runs, where the new UI runs, a way to give every run a fresh starting state, and a way to read what really happened. You describe all four in one JSON file. Apps with an HTTP API need no code.
 
+There are two ways to get requirements:
+
+- **Write them** (section 3) when you know the behaviours that matter.
+- **Capture them** (section 5) when you want Recast to freeze what the legacy app does before a rebuild, with no hand-written expectations.
+
+Either way, `recast check` then tests the new UI against every frozen requirement.
+
 ## 1. Scaffold a project
 
 ```bash
@@ -105,6 +112,12 @@ pnpm recast report --format markdown
 
 `init` validates the config and explains any mistake by field. `doctor` checks the database, queue, Kane CLI, credits, the config, and that every UI responds.
 
+Once several requirements are frozen, check them all in one command instead of one `compare` at a time:
+
+```bash
+pnpm recast check --target new     # every frozen requirement, 2 runs each; exit 1 if any is Missing
+```
+
 ## 5. Or freeze the whole legacy app at once
 
 Instead of writing each requirement by hand, let Recast capture them. After `recast discover run`, `recast capture` takes every state-changing control Kane found (buttons such as Cancel, Delete or Archive) and, for each one:
@@ -120,6 +133,8 @@ pnpm recast capture --yes          # spend the credits: probe, confirm and freez
 pnpm recast contract               # contract/CONTRACT.md and contract/contract.json for the rebuild
 pnpm recast check --target new     # later: check the rebuild against every frozen behaviour
 ```
+
+If the new UI does not exist yet, point the `target` environment at where it will run. `doctor` reports it as unreachable until then, which does not stop capture: capture only uses the legacy UI.
 
 Each control costs four Kane runs by default. The drafted intent reads "Open {subject} and use its "{control}" control, using only the web UI." Set `"capture": { "subject": "the order {{order_id}}" }` in the config to say how a person names the item each run starts with. Captured requirement files are written to `captured/` so you can review them, and `check` exits 1 when any behaviour is missing, so it fits a CI job.
 
